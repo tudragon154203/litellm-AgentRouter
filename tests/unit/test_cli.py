@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -56,7 +57,7 @@ class TestParseArgs:
         with patch.dict(os.environ, {}, clear=True):
             args = parse_args(argv)
 
-            assert args.config == "/path/to/config.yaml"
+            assert args.config == Path("/path/to/config.yaml")
             assert args.alias == "custom-model"
             assert args.model == "gpt-3.5-turbo"
             assert args.upstream_base == "https://custom.api.com/v1"
@@ -76,7 +77,7 @@ class TestParseArgs:
         with patch.dict(os.environ, {"LITELLM_CONFIG": "/env/config.yaml"}):
             args = parse_args([])
 
-            assert args.config == "/env/config.yaml"
+            assert args.config == Path("/env/config.yaml")
 
     def test_parse_args_alias_from_env(self):
         """Test parse_args with alias from environment variable."""
@@ -196,7 +197,7 @@ class TestParseArgs:
             args = parse_args(argv)
 
             # CLI arguments should take precedence
-            assert args.config == "/cli/config.yaml"
+            assert args.config == Path("/cli/config.yaml")
             assert args.alias == "cli-model"
             assert args.model == "gpt-4"
             assert args.upstream_base == "https://cli.api.com/v1"
@@ -277,9 +278,9 @@ class TestParseArgs:
 
     def test_parse_args_help_message(self):
         """Test that help message contains expected content."""
-        with pytest.raises(SystemExit) as exc_info:
-            with patch("sys.argv", ["script", "--help"]):
-                parse_args([])
+        with patch("sys.argv", ["script", "--help"]):
+            with pytest.raises(SystemExit) as exc_info:
+                parse_args(["--help"])
 
         assert exc_info.value.code == 0
 

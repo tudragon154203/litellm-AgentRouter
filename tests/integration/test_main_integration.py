@@ -24,7 +24,7 @@ class TestMainIntegration:
         # Test with various arguments
         argv = [
             "--alias", "integration-test-model",
-            "--model", "gpt-4-turbo",
+            "--model", "gpt-5",
             "--upstream-base", "https://custom.api.com/v1",
             "--upstream-key-env", "CUSTOM_API_KEY",
             "--master-key", "sk-custom-integration",
@@ -37,7 +37,15 @@ class TestMainIntegration:
         args = parse_args(argv)
 
         # Render configuration
-        config_content = render_config(args)
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
         config = yaml.safe_load(config_content)
 
         # Verify configuration structure
@@ -46,12 +54,12 @@ class TestMainIntegration:
 
         model_config = config["model_list"][0]
         assert model_config["model_name"] == "integration-test-model"
-        assert model_config["litellm_params"]["model"] == "gpt-4-turbo"
+        assert model_config["litellm_params"]["model"] == "gpt-5"
         assert model_config["litellm_params"]["api_base"] == "https://custom.api.com/v1"
 
-        # Check router settings
-        assert "router" in config
-        assert config["router"]["force_parallel_requests"] is True
+        # Check litellm settings
+        assert "litellm_settings" in config
+        assert config["litellm_settings"]["drop_params"] is True
 
     def test_config_rendering_with_environment_variables(self):
         """Test configuration rendering with environment variables."""
@@ -65,7 +73,15 @@ class TestMainIntegration:
         with patch.dict(os.environ, env_vars, clear=True):
             args = parse_args([])  # Use defaults from environment
 
-            config_content = render_config(args)
+            master_key = None if args.no_master_key else args.master_key
+            config_content = render_config(
+                alias=args.alias,
+                upstream_model=args.model,
+                upstream_base=args.upstream_base,
+                upstream_key_env=args.upstream_key_env,
+                master_key=master_key,
+                drop_params=args.drop_params
+            )
             config = yaml.safe_load(config_content)
 
             model_config = config["model_list"][0]
@@ -84,7 +100,15 @@ class TestMainIntegration:
             ])
 
             # Render config to file
-            config_content = render_config(args)
+            master_key = None if args.no_master_key else args.master_key
+            config_content = render_config(
+                alias=args.alias,
+                upstream_model=args.model,
+                upstream_base=args.upstream_base,
+                upstream_key_env=args.upstream_key_env,
+                master_key=master_key,
+                drop_params=args.drop_params
+            )
             with open(config_path, 'w') as f:
                 f.write(config_content)
 
@@ -104,7 +128,15 @@ class TestMainIntegration:
             "--print-config"
         ])
 
-        config_content = render_config(args)
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
 
         # Should be valid YAML
         config = yaml.safe_load(config_content)
@@ -118,7 +150,15 @@ class TestMainIntegration:
             "--alias", "no-auth-model"
         ])
 
-        config_content = render_config(args)
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
         config = yaml.safe_load(config_content)
 
         # Should not have authentication settings
@@ -137,7 +177,15 @@ class TestMainIntegration:
 
         for alias in test_cases:
             args = parse_args(["--alias", alias])
-            config_content = render_config(args)
+            master_key = None if args.no_master_key else args.master_key
+            config_content = render_config(
+                alias=args.alias,
+                upstream_model=args.model,
+                upstream_base=args.upstream_base,
+                upstream_key_env=args.upstream_key_env,
+                master_key=master_key,
+                drop_params=args.drop_params
+            )
             config = yaml.safe_load(config_content)
 
             assert config["model_list"][0]["model_name"] == alias
@@ -164,7 +212,15 @@ class TestMainIntegration:
 
         for test_config in test_configs:
             args = parse_args(test_config["args"])
-            config_content = render_config(args)
+            master_key = None if args.no_master_key else args.master_key
+            config_content = render_config(
+                alias=args.alias,
+                upstream_model=args.model,
+                upstream_base=args.upstream_base,
+                upstream_key_env=args.upstream_key_env,
+                master_key=master_key,
+                drop_params=args.drop_params
+            )
             config = yaml.safe_load(config_content)
 
             # Verify model configuration
@@ -180,16 +236,44 @@ class TestMainIntegration:
         with pytest.raises(SystemExit):
             parse_args(["--port", "invalid"])
 
-        # Test invalid workers number
-        with pytest.raises(SystemExit):
-            parse_args(["--workers", "-1"])
+    def test_gpt5_model_configuration(self):
+        """Test specific GPT-5 model configuration."""
+        args = parse_args([
+            "--alias", "gpt5-proxy",
+            "--model", "gpt-5",
+            "--upstream-base", "https://api.openai.com/v1"
+        ])
+
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
+        config = yaml.safe_load(config_content)
+
+        model_config = config["model_list"][0]
+        assert model_config["model_name"] == "gpt5-proxy"
+        assert model_config["litellm_params"]["model"] == "gpt-5"
+        assert model_config["litellm_params"]["api_base"] == "https://api.openai.com/v1"
 
     def test_config_validation_edge_cases(self):
         """Test configuration validation edge cases."""
         # Test with very long alias
         long_alias = "a" * 100
         args = parse_args(["--alias", long_alias])
-        config_content = render_config(args)
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
         config = yaml.safe_load(config_content)
 
         assert config["model_list"][0]["model_name"] == long_alias
@@ -197,7 +281,15 @@ class TestMainIntegration:
         # Test with special characters in alias
         special_alias = "test-model_v2-with.special"
         args = parse_args(["--alias", special_alias])
-        config_content = render_config(args)
+        master_key = None if args.no_master_key else args.master_key
+        config_content = render_config(
+            alias=args.alias,
+            upstream_model=args.model,
+            upstream_base=args.upstream_base,
+            upstream_key_env=args.upstream_key_env,
+            master_key=master_key,
+            drop_params=args.drop_params
+        )
         config = yaml.safe_load(config_content)
 
         assert config["model_list"][0]["model_name"] == special_alias

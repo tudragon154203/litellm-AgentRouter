@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Tuple
 
@@ -88,6 +89,7 @@ def prepare_config(args: argparse.Namespace) -> Tuple[Path | str, bool]:
     return config_text, True
 
 
+@contextmanager
 def create_temp_config_if_needed(config_data: Path | str, is_generated: bool):
     """
     Create a temporary config file if needed.
