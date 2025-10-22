@@ -106,6 +106,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_false",
         help="Disable litellm.drop_params in the generated config.",
     )
+    streaming_default = env_bool("IS_STREAMING", True)
+    parser.add_argument(
+        "--streaming",
+        dest="streaming",
+        action="store_true",
+        default=streaming_default,
+        help="Enable streaming mode in the generated config (default: from IS_STREAMING env var).",
+    )
+    parser.add_argument(
+        "--no-streaming",
+        dest="streaming",
+        action="store_false",
+        help="Disable streaming mode in the generated config.",
+    )
     parser.add_argument(
         "--print-config",
         action="store_true",

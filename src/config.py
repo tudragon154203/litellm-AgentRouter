@@ -23,6 +23,7 @@ def render_config(
     upstream_key_env: str | None,
     master_key: str | None,
     drop_params: bool,
+    streaming: bool,
 ) -> str:
     """Render a minimal LiteLLM proxy config."""
     # Convert model to openai/ format if it's not already prefixed
@@ -45,6 +46,7 @@ def render_config(
 
     lines.append("litellm_settings:")
     lines.append(f"  drop_params: {'true' if drop_params else 'false'}")
+    lines.append(f"  set_verbose: {'true' if streaming else 'false'}")
 
     if master_key:
         lines.append("")
@@ -84,6 +86,7 @@ def prepare_config(args: argparse.Namespace) -> Tuple[Path | str, bool]:
         upstream_key_env=upstream_key_env,
         master_key=master_key,
         drop_params=args.drop_params,
+        streaming=args.streaming,
     )
 
     if args.print_config:

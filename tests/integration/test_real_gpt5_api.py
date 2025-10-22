@@ -28,7 +28,7 @@ class TestRealGPT5API:
         import litellm
         litellm.drop_params = True
 
-    def _call_gpt5_api(self, **kwargs):
+    def _call_gpt5_api_not_stream(self, **kwargs):
         """Helper method to call GPT-5 API (non-streaming only)."""
         import litellm
         import sys
@@ -165,4 +165,77 @@ class TestRealGPT5API:
         last_chunk = chunks[-1]
         if hasattr(last_chunk, 'usage') and last_chunk.usage:
             assert last_chunk.usage.total_tokens > 0
+
+    def test_gpt5_streaming_vs_non_streaming_performance(self):
+        """Compare performance between streaming and non-streaming modes."""
+        import litellm
+        import time
+        import statistics
+
+        test_prompt = "Write a brief explanation of quantum computing in 3 paragraphs"
+        test_params = {
+            'messages': [{"role": "user", "content": test_prompt}],
+            'max_tokens': 500,
+            'temperature': 0.7,
+        }
+
+        # Measure non-streaming performance
+        non_streaming_times = []
+        non_streaming_content_lengths = []
+
+        for i in range(3):  # Run multiple times for average
+            start_time = time.time()
+            response = self._call_gpt5_api(**test_params)
+            end_time = time.time()
+
+            non_streaming_times.append(end_time - start_time)
+            content_length = len(response.choices[0].message.content or "")
+            non_streaming_content_lengths.append(content_length)
+
+        # Measure streaming performance
+        streaming_times = []
+        streaming_content_lengths = []
+
+        for i in range(3):  # Run multiple times for average
+            start_time = time.time()
+            response_stream = self._call_gpt5_api_streaming(**test_params)
+
+            content_parts = []
+            for chunk in response_stream:
+                delta = chunk.choices[0].delta
+                if delta and hasattr(delta, 'content') and delta.content:
+                    content_parts.append(delta.content)
+
+            end_time = time.time()
+
+            streaming_times.append(end_time - start_time)
+            full_content = ''.join(content_parts)
+            streaming_content_lengths.append(len(full_content))
+
+        # Calculate averages
+        avg_non_streaming_time = statistics.mean(non_streaming_times)
+        avg_streaming_time = statistics.mean(streaming_times)
+        avg_non_streaming_length = statistics.mean(non_streaming_content_lengths)
+        avg_streaming_length = statistics.mean(streaming_content_lengths)
+
+        # Performance assertions
+        assert avg_non_streaming_time > 0, "Non-streaming should take positive time"
+        assert avg_streaming_time > 0, "Streaming should take positive time"
+
+        # Content should be similar length (within 20% tolerance)
+        length_ratio = avg_streaming_length / avg_non_streaming_length if avg_non_streaming_length > 0 else 0
+        assert 0.8 <= length_ratio <= 1.2, f"Content length ratio {length_ratio:.2f} should be close to 1.0"
+
+        # Print performance comparison for analysis
+        print(f"\nPerformance Comparison:")
+        print(f"Non-streaming - Average time: {avg_non_streaming_time:.2f}s, Content length: {avg_non_streaming_length:.0f}")
+        print(f"Streaming - Average time: {avg_streaming_time:.2f}s, Content length: {avg_streaming_length:.0f}")
+        print(f"Time difference: {avg_non_streaming_time - avg_streaming_time:.2f}s")
+        print(f"Streaming speedup: {avg_non_streaming_time / avg_streaming_time:.2f}x" if avg_streaming_time > 0 else "N/A")
+
+        # Basic performance expectations
+        # Streaming should complete reasonably close to non-streaming time
+        # In many cases, streaming might be slightly faster due to reduced buffering
+        time_ratio = avg_streaming_time / avg_non_streaming_time
+        assert 0.5 <= time_ratio <= 2.0, f"Time ratio {time_ratio:.2f} should be reasonable"
 

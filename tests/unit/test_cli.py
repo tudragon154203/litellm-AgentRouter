@@ -33,6 +33,7 @@ class TestParseArgs:
             assert args.detailed_debug is False
             assert args.no_master_key is False
             assert args.drop_params is True
+            assert args.streaming is True
             assert args.print_config is False
 
     def test_parse_args_with_all_arguments(self):
@@ -51,6 +52,7 @@ class TestParseArgs:
             "--detailed-debug",
             "--no-master-key",
             "--no-drop-params",
+            "--no-streaming",
             "--print-config",
         ]
 
@@ -70,6 +72,7 @@ class TestParseArgs:
             assert args.detailed_debug is True
             assert args.no_master_key is True
             assert args.drop_params is False
+            assert args.streaming is False
             assert args.print_config is True
 
     def test_parse_args_config_from_env(self):
@@ -164,6 +167,72 @@ class TestParseArgs:
 
             assert args.drop_params is False
 
+    def test_parse_args_streaming_from_env_true(self):
+        """Test parse_args with streaming from environment variable (true)."""
+        with patch.dict(os.environ, {"IS_STREAMING": "true"}):
+            args = parse_args([])
+            assert args.streaming is True
+
+    def test_parse_args_streaming_from_env_false(self):
+        """Test parse_args with streaming from environment variable (false)."""
+        with patch.dict(os.environ, {"IS_STREAMING": "false"}):
+            args = parse_args([])
+            assert args.streaming is False
+
+    def test_parse_args_streaming_from_env_various_formats(self):
+        """Test parse_args with various boolean string formats for IS_STREAMING."""
+        test_cases = [
+            ("1", True),
+            ("true", True),
+            ("yes", True),
+            ("on", True),
+            ("0", False),
+            ("false", False),
+            ("no", False),
+            ("off", False),
+            ("TRUE", True),
+            ("FALSE", False),
+            ("Yes", True),
+            ("No", False),
+        ]
+
+        for env_value, expected in test_cases:
+            with patch.dict(os.environ, {"IS_STREAMING": env_value}):
+                args = parse_args([])
+                assert args.streaming is expected, f"Failed for env value: {env_value}"
+
+    def test_parse_args_streaming_flag(self):
+        """Test parse_args with --streaming flag."""
+        argv = ["--streaming"]
+        with patch.dict(os.environ, {}, clear=True):
+            args = parse_args(argv)
+            assert args.streaming is True
+
+    def test_parse_args_no_streaming_flag(self):
+        """Test parse_args with --no-streaming flag."""
+        argv = ["--no-streaming"]
+        with patch.dict(os.environ, {}, clear=True):
+            args = parse_args(argv)
+            assert args.streaming is False
+
+    def test_parse_args_streaming_flag_overrides_env(self):
+        """Test that --streaming flag overrides IS_STREAMING environment variable."""
+        env_vars = {"IS_STREAMING": "false"}
+        argv = ["--streaming"]
+
+        with patch.dict(os.environ, env_vars):
+            args = parse_args(argv)
+            assert args.streaming is True
+
+    def test_parse_args_no_streaming_flag_overrides_env(self):
+        """Test that --no-streaming flag overrides IS_STREAMING environment variable."""
+        env_vars = {"IS_STREAMING": "true"}
+        argv = ["--no-streaming"]
+
+        with patch.dict(os.environ, env_vars):
+            args = parse_args(argv)
+            assert args.streaming is False
+
     def test_parse_args_cli_overrides_env(self):
         """Test that CLI arguments override environment variables."""
         env_vars = {
@@ -178,6 +247,7 @@ class TestParseArgs:
             "LITELLM_DEBUG": "1",
             "LITELLM_DETAILED_DEBUG": "1",
             "LITELLM_DROP_PARAMS": "no",
+            "IS_STREAMING": "false",
         }
 
         argv = [
@@ -191,6 +261,7 @@ class TestParseArgs:
             "--port", "9000",
             "--workers", "2",
             "--no-drop-params",
+            "--streaming",
         ]
 
         with patch.dict(os.environ, env_vars):
@@ -207,6 +278,7 @@ class TestParseArgs:
             assert args.port == 9000
             assert args.workers == 2
             assert args.drop_params is False  # overridden by --no-drop-params
+            assert args.streaming is True  # overridden by --streaming (env was false)
 
             # These should still come from env since not overridden
             assert args.debug is True

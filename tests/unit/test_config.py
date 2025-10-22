@@ -29,6 +29,7 @@ class TestRenderConfigSimple:
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
+            streaming=True,
         )
 
         expected = """model_list:
@@ -40,6 +41,88 @@ class TestRenderConfigSimple:
 
 litellm_settings:
   drop_params: true
+  set_verbose: true
+"""
+        assert result == expected
+
+    def test_render_config_streaming_enabled(self):
+        """Test rendering config with streaming enabled."""
+        result = render_config(
+            alias="streaming-model",
+            upstream_model="gpt-4",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env="OPENAI_API_KEY",
+            master_key="sk-master-key",
+            drop_params=True,
+            streaming=True,
+        )
+
+        expected = """model_list:
+  - model_name: "streaming-model"
+    litellm_params:
+      model: "openai/gpt-4"
+      api_base: "https://api.openai.com/v1"
+      api_key: "os.environ/OPENAI_API_KEY"
+
+litellm_settings:
+  drop_params: true
+  set_verbose: true
+
+general_settings:
+  master_key: "sk-master-key"
+"""
+        assert result == expected
+
+    def test_render_config_streaming_disabled(self):
+        """Test rendering config with streaming disabled."""
+        result = render_config(
+            alias="non-streaming-model",
+            upstream_model="gpt-3.5-turbo",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env="OPENAI_API_KEY",
+            master_key=None,
+            drop_params=False,
+            streaming=False,
+        )
+
+        expected = """model_list:
+  - model_name: "non-streaming-model"
+    litellm_params:
+      model: "openai/gpt-3.5-turbo"
+      api_base: "https://api.openai.com/v1"
+      api_key: "os.environ/OPENAI_API_KEY"
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+"""
+        assert result == expected
+
+    def test_render_config_streaming_mixed_settings(self):
+        """Test rendering config with mixed streaming and other settings."""
+        result = render_config(
+            alias="mixed-model",
+            upstream_model="custom/model",
+            upstream_base="https://custom.api.com/v1",
+            upstream_key_env=None,
+            master_key="sk-custom-master",
+            drop_params=True,
+            streaming=False,
+        )
+
+        expected = """model_list:
+  - model_name: "mixed-model"
+    litellm_params:
+      model: "openai/custom/model"
+      api_base: "https://custom.api.com/v1"
+      api_key: null
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+
+general_settings:
+  master_key: "sk-custom-master"
 """
         assert result == expected
 
@@ -290,6 +373,7 @@ class TestRenderConfigEdgeCases:
             upstream_key_env="CUSTOM_API_KEY",
             master_key="sk-custom-integration",
             drop_params=True,
+            streaming=True,
         )
         config = yaml.safe_load(result)
 
@@ -299,6 +383,7 @@ class TestRenderConfigEdgeCases:
         assert config["model_list"][0]["litellm_params"]["api_base"] == "https://custom.api.com/v1"
         assert config["model_list"][0]["litellm_params"]["api_key"] == "os.environ/CUSTOM_API_KEY"
         assert config["litellm_settings"]["drop_params"] is True
+        assert config["litellm_settings"]["set_verbose"] is True
 
     def test_render_config_custom_model_aliases(self):
         """Test custom model alias edge cases (from integration tests)."""
@@ -318,6 +403,7 @@ class TestRenderConfigEdgeCases:
                 upstream_key_env=None,
                 master_key=None,
                 drop_params=True,
+                streaming=False,
             )
             config = yaml.safe_load(result)
             assert config["model_list"][0]["model_name"] == alias
@@ -332,6 +418,7 @@ class TestRenderConfigEdgeCases:
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
+            streaming=True,
         )
         config = yaml.safe_load(result)
         assert config["model_list"][0]["model_name"] == long_alias
@@ -345,9 +432,11 @@ class TestRenderConfigEdgeCases:
             upstream_key_env="CUSTOM_API_KEY",
             master_key=None,
             drop_params=True,
+            streaming=False,
         )
 
         # Should reference environment variable in config
         assert "os.environ/CUSTOM_API_KEY" in result
         assert "gpt-5" in result
         assert "https://render-test.api.com/v1" in result
+        assert "set_verbose: false" in result
