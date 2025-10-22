@@ -25,6 +25,10 @@ def render_config(
     drop_params: bool,
 ) -> str:
     """Render a minimal LiteLLM proxy config."""
+    # Convert model to openai/ format if it's not already prefixed
+    if not upstream_model.startswith("openai/"):
+        upstream_model = f"openai/{upstream_model}"
+
     lines = [
         "model_list:",
         f"  - model_name: {quote(alias)}",

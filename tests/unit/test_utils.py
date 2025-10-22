@@ -56,6 +56,14 @@ class TestEnvBool:
             assert env_bool("UNSET_VAR", default=True) is True
             assert env_bool("UNSET_VAR", default=False) is False
 
+    def test_env_bool_default_true(self):
+        """Test env_bool with default=True parameter."""
+        with patch.dict(os.environ, {}, clear=True):
+            assert env_bool("UNSET_VAR", default=True) is True
+            # Test that explicit False overrides default True
+            with patch.dict(os.environ, {"UNSET_VAR": "false"}):
+                assert env_bool("UNSET_VAR", default=True) is False
+
 
 class TestLoadDotenvFiles:
     """Test cases for load_dotenv_files function."""
@@ -147,6 +155,26 @@ class TestLoadDotenvFiles:
                 load_dotenv_files()
                 # Should only load once, but still have the value
                 assert os.environ["TEST_KEY"] == "test_value"
+
+    def test_load_dotenv_files_nonexistent_file(self):
+        """Test load_dotenv_files when .env file doesn't exist (covers line 30)."""
+        with patch("src.utils.Path") as mock_path_class:
+            # Mock both paths to not exist
+            mock_script_dir = Path("/nonexistent")
+            mock_cwd = Path("/nonexistent")
+            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
+            mock_path_class.cwd.return_value = mock_cwd
+
+            # Mock .env file that doesn't exist
+            mock_env_path = MagicMock()
+            mock_env_path.is_file.return_value = False
+            mock_path_class.return_value = mock_env_path
+
+            with patch.dict(os.environ, {}, clear=True):
+                load_dotenv_files()
+
+            # Should not add any environment variables
+                assert len(os.environ) == 0
 
 
 class TestQuote:

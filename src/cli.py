@@ -29,7 +29,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--alias",
-        default=os.getenv("LITELLM_MODEL_ALIAS", "local-gpt"),
+        default=os.getenv("LITELLM_MODEL_ALIAS", "gpt-5"),
         help="Public model name to expose from the proxy.",
     )
     parser.add_argument(

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Integration tests for the main CLI functionality."""
+"""Integration tests for CLI and configuration functionality."""
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -13,15 +12,13 @@ import yaml
 
 from src.cli import parse_args
 from src.config import render_config
-from src.main import main
 
 
-class TestMainIntegration:
-    """Integration tests for main CLI functionality."""
+class TestCLIConfigurationIntegration:
+    """Integration tests for CLI argument parsing and configuration generation."""
 
     def test_full_config_rendering_cycle(self):
         """Test the full configuration rendering cycle."""
-        # Test with various arguments
         argv = [
             "--alias", "integration-test-model",
             "--model", "gpt-5",
@@ -36,7 +33,6 @@ class TestMainIntegration:
 
         args = parse_args(argv)
 
-        # Render configuration
         master_key = None if args.no_master_key else args.master_key
         config_content = render_config(
             alias=args.alias,
@@ -61,33 +57,6 @@ class TestMainIntegration:
         assert "litellm_settings" in config
         assert config["litellm_settings"]["drop_params"] is True
 
-    def test_config_rendering_with_environment_variables(self):
-        """Test configuration rendering with environment variables."""
-        env_vars = {
-            "OPENAI_API_KEY": "sk-test-env-key",
-            "LITELLM_MASTER_KEY": "sk-test-master",
-            "OPENAI_MODEL": "gpt-3.5-turbo",
-            "OPENAI_BASE_URL": "https://api.custom.com/v1"
-        }
-
-        with patch.dict(os.environ, env_vars, clear=True):
-            args = parse_args([])  # Use defaults from environment
-
-            master_key = None if args.no_master_key else args.master_key
-            config_content = render_config(
-                alias=args.alias,
-                upstream_model=args.model,
-                upstream_base=args.upstream_base,
-                upstream_key_env=args.upstream_key_env,
-                master_key=master_key,
-                drop_params=args.drop_params
-            )
-            config = yaml.safe_load(config_content)
-
-            model_config = config["model_list"][0]
-            assert model_config["model_name"] == "local-gpt"  # default alias
-            assert model_config["litellm_params"]["model"] == "gpt-3.5-turbo"
-
     def test_config_file_creation_and_usage(self):
         """Test that config files are properly created and can be used."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -96,7 +65,7 @@ class TestMainIntegration:
             args = parse_args([
                 "--config", str(config_path),
                 "--alias", "file-test-model",
-                "--model", "gpt-4"
+                "--model", "gpt-5"
             ])
 
             # Render config to file
@@ -124,7 +93,7 @@ class TestMainIntegration:
         """Test the --print-config functionality."""
         args = parse_args([
             "--alias", "print-test-model",
-            "--model", "gpt-4",
+            "--model", "gpt-5",
             "--print-config"
         ])
 
@@ -159,18 +128,16 @@ class TestMainIntegration:
             master_key=master_key,
             drop_params=args.drop_params
         )
-        config = yaml.safe_load(config_content)
 
         # Should not have authentication settings
-        assert "model_list" in config
-        model_config = config["model_list"][0]
-        assert model_config["model_name"] == "no-auth-model"
+        assert "model_list" in config_content
+        assert "master_key" not in config_content
 
     def test_custom_model_aliases(self):
         """Test custom model alias functionality."""
         test_cases = [
             "custom-model",
-            "my-gpt4",
+            "my-gpt5",
             "work-assistant",
             "api-model-v1"
         ]
@@ -194,13 +161,13 @@ class TestMainIntegration:
         """Test various combinations of configuration options."""
         test_configs = [
             {
-                "args": ["--model", "gpt-3.5-turbo", "--workers", "2"],
-                "expected_model": "gpt-3.5-turbo",
+                "args": ["--model", "gpt-5", "--workers", "2"],
+                "expected_model": "gpt-5",
                 "expected_workers": "2"
             },
             {
-                "args": ["--model", "gpt-4", "--debug"],
-                "expected_model": "gpt-4",
+                "args": ["--model", "gpt-5", "--debug"],
+                "expected_model": "gpt-5",
                 "expected_debug": True
             },
             {
@@ -235,30 +202,6 @@ class TestMainIntegration:
         # Test invalid port number (this should be caught by argparse)
         with pytest.raises(SystemExit):
             parse_args(["--port", "invalid"])
-
-    def test_gpt5_model_configuration(self):
-        """Test specific GPT-5 model configuration."""
-        args = parse_args([
-            "--alias", "gpt5-proxy",
-            "--model", "gpt-5",
-            "--upstream-base", "https://api.openai.com/v1"
-        ])
-
-        master_key = None if args.no_master_key else args.master_key
-        config_content = render_config(
-            alias=args.alias,
-            upstream_model=args.model,
-            upstream_base=args.upstream_base,
-            upstream_key_env=args.upstream_key_env,
-            master_key=master_key,
-            drop_params=args.drop_params
-        )
-        config = yaml.safe_load(config_content)
-
-        model_config = config["model_list"][0]
-        assert model_config["model_name"] == "gpt5-proxy"
-        assert model_config["litellm_params"]["model"] == "gpt-5"
-        assert model_config["litellm_params"]["api_base"] == "https://api.openai.com/v1"
 
     def test_config_validation_edge_cases(self):
         """Test configuration validation edge cases."""

@@ -21,7 +21,7 @@ class TestParseArgs:
             args = parse_args([])
 
             assert args.config is None
-            assert args.alias == "local-gpt"
+            assert args.alias == "gpt-5"
             assert args.model == "gpt-4o"
             assert args.upstream_base == "https://api.openai.com/v1"
             assert args.upstream_key_env == "OPENAI_API_KEY"

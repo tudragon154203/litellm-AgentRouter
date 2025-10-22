@@ -368,3 +368,59 @@ class TestMain:
         assert params["argv"].annotation == "list[str] | None"
         assert params["argv"].default is None
         assert sig.return_annotation == "NoReturn"
+
+    def test_main_exit_code_zero_after_proxy(self):
+        """Test that main exits with code 0 after successful proxy completion."""
+        # This tests the final sys.exit(0) line
+        mock_args = MagicMock()
+        mock_args.host = "localhost"
+        mock_args.port = 3000
+        mock_args.alias = "test-model"
+
+        with patch("src.main.parse_args", return_value=mock_args), \
+             patch("src.main.load_dotenv_files"), \
+             patch("src.main.validate_prereqs"), \
+             patch("src.main.attach_signal_handlers"), \
+             patch("src.main.prepare_config", return_value=("config", True)), \
+             patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
+             patch("src.main.start_proxy") as mock_start_proxy, \
+             patch("sys.exit") as mock_exit:
+
+            # Configure mocks
+            mock_temp_path = Path("/tmp/config.yaml")
+            mock_create_temp.return_value.__enter__.return_value = mock_temp_path
+
+            main([])
+
+            # Verify sys.exit(0) was called at the end
+            mock_exit.assert_called_once_with(0)
+
+    def test_main_final_sys_exit_line_44(self):
+        """Test the final sys.exit(0) call on line 44."""
+        # This test specifically targets line 44 to ensure it's covered
+        mock_args = MagicMock()
+        mock_args.host = "0.0.0.0"
+        mock_args.port = 4000
+        mock_args.alias = "test-model"
+
+        with patch("src.main.parse_args", return_value=mock_args), \
+             patch("src.main.load_dotenv_files"), \
+             patch("src.main.validate_prereqs"), \
+             patch("src.main.attach_signal_handlers"), \
+             patch("src.main.prepare_config", return_value=("config", True)), \
+             patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
+             patch("src.main.start_proxy"), \
+             patch("sys.exit") as mock_exit:
+
+            # Configure mocks to simulate successful execution
+            mock_temp_path = Path("/tmp/config.yaml")
+            mock_create_temp.return_value.__enter__.return_value = mock_temp_path
+
+            # Execute main function
+            main([])
+
+            # Verify the final sys.exit(0) was called (line 44)
+            mock_exit.assert_called_once_with(0)
+
+            # Ensure no other calls to sys.exit were made
+            assert mock_exit.call_count == 1
