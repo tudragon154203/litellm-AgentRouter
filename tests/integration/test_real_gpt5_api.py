@@ -29,7 +29,31 @@ class TestRealGPT5API:
         litellm.drop_params = True
 
     def _call_gpt5_api(self, **kwargs):
-        """Helper method to call GPT-5 API."""
+        """Helper method to call GPT-5 API (non-streaming only)."""
+        import litellm
+        import sys
+
+        # Ensure streaming is disabled for this method
+        if 'stream' in kwargs:
+            del kwargs['stream']
+
+        # Use the same format as the working demo
+        default_params = {
+            'model': 'openai/gpt-5',
+            'api_base': self.base_url,
+            'api_key': self.api_key,
+            'custom_llm_provider': 'openai',
+            'stream': False,
+            'headers': {
+                "Authorization": f"Bearer {self.api_key}",
+                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+            }
+        }
+        default_params.update(kwargs)
+        return litellm.completion(**default_params)
+
+    def _call_gpt5_api_streaming(self, **kwargs):
+        """Helper method to call GPT-5 API with streaming."""
         import litellm
         import sys
 
@@ -39,6 +63,7 @@ class TestRealGPT5API:
             'api_base': self.base_url,
             'api_key': self.api_key,
             'custom_llm_provider': 'openai',
+            'stream': True,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
                 "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
@@ -98,4 +123,46 @@ class TestRealGPT5API:
 
         # Should answer the question correctly
         assert any(word in ["4", "four"] for word in content.lower())
+
+    def test_gpt5_streaming_completion(self):
+        """Test GPT-5 completion with streaming enabled."""
+        import litellm
+
+        response_stream = self._call_gpt5_api_streaming(
+            messages=[{"role": "user", "content": "Count from 1 to 5"}],
+            max_tokens=1000,
+            temperature=0.7,
+        )
+
+        # Assert response is a generator/iterator
+        assert hasattr(response_stream, '__iter__'), "Response should be iterable for streaming"
+
+        # Collect all chunks
+        chunks = []
+        content_parts = []
+
+        for chunk in response_stream:
+            chunks.append(chunk)
+
+            # Assert chunk structure
+            assert chunk is not None
+            assert hasattr(chunk, 'choices')
+            assert len(chunk.choices) > 0
+
+            # Get delta content if available
+            delta = chunk.choices[0].delta
+            if delta and hasattr(delta, 'content') and delta.content:
+                content_parts.append(delta.content)
+
+        # Assert we received chunks
+        assert len(chunks) > 0, "Should receive at least one chunk"
+
+        # Assert we got some content
+        full_content = ''.join(content_parts).strip()
+        assert len(full_content) > 0, "Streaming response should contain content"
+
+        # Check usage information if available (may not be present in streaming responses)
+        last_chunk = chunks[-1]
+        if hasattr(last_chunk, 'usage') and last_chunk.usage:
+            assert last_chunk.usage.total_tokens > 0
 
