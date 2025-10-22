@@ -3,11 +3,11 @@ services:
     build: .
     ports:
       - "4000:4000"
-    command: ["python", "-m", "src.main", "--config", "/app/debug-config.yaml", "--detailed-debug"]
+    entrypoint: ["/bin/bash", "/app/entrypoint.sh"]
     volumes:
       - ./src:/app/src
       - ./.env:/app/.env
-      - ./debug-config.yaml:/app/debug-config.yaml
+      - ./entrypoint.sh:/app/entrypoint.sh
     env_file:
       - .env
     restart: unless-stopped
