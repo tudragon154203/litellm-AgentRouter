@@ -3,10 +3,11 @@ services:
     build: .
     ports:
       - "4000:4000"
-    command: ["python", "-m", "src.main"]
+    command: ["python", "-m", "src.main", "--config", "/app/debug-config.yaml", "--detailed-debug"]
     volumes:
       - ./src:/app/src
       - ./.env:/app/.env
+      - ./debug-config.yaml:/app/debug-config.yaml
     env_file:
       - .env
     restart: unless-stopped

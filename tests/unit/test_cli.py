@@ -325,3 +325,44 @@ class TestParseArgs:
             with patch.dict(os.environ, {"LITELLM_DEBUG": env_value}):
                 args = parse_args([])
                 assert args.debug is expected, f"Failed for env value: {env_value}"
+
+    def test_parse_args_complex_combinations(self):
+        """Test complex flag combinations from integration tests."""
+        test_cases = [
+            {
+                "args": ["--model", "gpt-5", "--workers", "2", "--debug"],
+                "expected_model": "gpt-5",
+                "expected_workers": 2,
+                "expected_debug": True
+            },
+            {
+                "args": ["--upstream-base", "https://custom.api.com", "--drop-params"],
+                "expected_base": "https://custom.api.com",
+                "expected_drop_params": True
+            },
+            {
+                "args": ["--model", "gpt-5", "--no-master-key", "--alias", "no-auth-model"],
+                "expected_model": "gpt-5",
+                "expected_no_master_key": True,
+                "expected_alias": "no-auth-model"
+            }
+        ]
+
+        for test_config in test_cases:
+            with patch.dict(os.environ, {}, clear=True):
+                args = parse_args(test_config["args"])
+
+                if "expected_model" in test_config:
+                    assert args.model == test_config["expected_model"]
+                if "expected_workers" in test_config:
+                    assert args.workers == test_config["expected_workers"]
+                if "expected_debug" in test_config:
+                    assert args.debug == test_config["expected_debug"]
+                if "expected_base" in test_config:
+                    assert args.upstream_base == test_config["expected_base"]
+                if "expected_drop_params" in test_config:
+                    assert args.drop_params == test_config["expected_drop_params"]
+                if "expected_no_master_key" in test_config:
+                    assert args.no_master_key == test_config["expected_no_master_key"]
+                if "expected_alias" in test_config:
+                    assert args.alias == test_config["expected_alias"]

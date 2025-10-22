@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
 from src.config import (
     create_temp_config_if_needed,
@@ -275,3 +276,78 @@ class TestPrepareConfigExtended:
         printed_config = mock_print.call_args[0][0]
         assert "model_list:" in printed_config
         assert "test-model" in printed_config
+
+
+class TestRenderConfigEdgeCases:
+    """Test edge cases and complex combinations for render_config."""
+
+    def test_render_config_full_flag_combination(self):
+        """Test rendering with many flags combined (from integration tests)."""
+        result = render_config(
+            alias="integration-test-model",
+            upstream_model="gpt-5",
+            upstream_base="https://custom.api.com/v1",
+            upstream_key_env="CUSTOM_API_KEY",
+            master_key="sk-custom-integration",
+            drop_params=True,
+        )
+        config = yaml.safe_load(result)
+
+        # Verify all components are present
+        assert config["model_list"][0]["model_name"] == "integration-test-model"
+        assert config["model_list"][0]["litellm_params"]["model"] == "openai/gpt-5"
+        assert config["model_list"][0]["litellm_params"]["api_base"] == "https://custom.api.com/v1"
+        assert config["model_list"][0]["litellm_params"]["api_key"] == "os.environ/CUSTOM_API_KEY"
+        assert config["litellm_settings"]["drop_params"] is True
+
+    def test_render_config_custom_model_aliases(self):
+        """Test custom model alias edge cases (from integration tests)."""
+        test_cases = [
+            "custom-model",
+            "my-gpt5",
+            "work-assistant",
+            "api-model-v1",
+            "test-model_v2-with.special"  # Special characters
+        ]
+
+        for alias in test_cases:
+            result = render_config(
+                alias=alias,
+                upstream_model="gpt-4",
+                upstream_base="https://api.openai.com/v1",
+                upstream_key_env=None,
+                master_key=None,
+                drop_params=True,
+            )
+            config = yaml.safe_load(result)
+            assert config["model_list"][0]["model_name"] == alias
+
+    def test_render_config_long_alias(self):
+        """Test with very long alias (edge case from integration tests)."""
+        long_alias = "a" * 100
+        result = render_config(
+            alias=long_alias,
+            upstream_model="gpt-4",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env=None,
+            master_key=None,
+            drop_params=True,
+        )
+        config = yaml.safe_load(result)
+        assert config["model_list"][0]["model_name"] == long_alias
+
+    def test_render_config_environment_variable_references(self):
+        """Test that environment variables are properly referenced in output."""
+        result = render_config(
+            alias="test-model",
+            upstream_model="gpt-5",
+            upstream_base="https://render-test.api.com/v1",
+            upstream_key_env="CUSTOM_API_KEY",
+            master_key=None,
+            drop_params=True,
+        )
+
+        # Should reference environment variable in config
+        assert "os.environ/CUSTOM_API_KEY" in result
+        assert "gpt-5" in result
+        assert "https://render-test.api.com/v1" in result
