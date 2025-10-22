@@ -1,0 +1,12 @@
+services:
+  litellm-proxy:
+    build: .
+    ports:
+      - "4000:4000"
+    command: ["python", "-m", "src.main"]
+    volumes:
+      - ./src:/app/src
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    restart: unless-stopped

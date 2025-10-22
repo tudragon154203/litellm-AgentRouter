@@ -1,79 +1,171 @@
 # LiteLLM Local Gateway
 
-This directory contains a small utility script and Docker image that launch a
-LiteLLM proxy exposing an OpenAI-compatible API endpoint. The proxy is useful
-when other local services expect the OpenAI client interface but you want to
-fan traffic out to any provider supported by LiteLLM.
+A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint. The proxy is useful when other local services expect the OpenAI client interface but you want to fan traffic out to any provider supported by LiteLLM.
+
+## Project Structure
+
+```
+├── src/
+│   ├── main.py          # Main entry point
+│   ├── cli.py           # CLI argument parsing
+│   ├── config.py        # Configuration management
+│   ├── proxy.py         # Proxy server logic
+│   └── utils.py         # Utility functions
+├── docker-compose.yml   # Docker Compose configuration
+├── Dockerfile          # Docker image definition
+├── pyproject.toml      # Python package configuration
+├── .env.example        # Example environment variables
+└── tests/              # Unit tests
+```
 
 ## Prerequisites
 
-- Python 3.10+
-- `pip install 'litellm[proxy]'` (includes FastAPI, uvicorn, and optional proxy dependencies)
+- Python 3.8+
+- Docker and Docker Compose (for containerized deployment)
 
-## Quick start (host)
+## Quick Start
 
-1. Review `litellm/.env` (pre-populated with the hard-coded values from the original `minimal-litellm-test.py`) or adjust it to match your own upstream service. The script reads the standard OpenAI-style variables:
+### Using Docker Compose (Recommended)
 
-   ```
-   OPENAI_API_KEY=…
-   OPENAI_BASE_URL=…
-   OPENAI_MODEL=…
-   ```
-
-2. Start the proxy:
+1. Copy the example environment file and configure your API key:
 
    ```bash
-   python litellm/local_openai_proxy.py
+   cp .env.example .env
+   # Edit .env and add your OPENAI_API_KEY
    ```
 
-The server listens on `http://0.0.0.0:4000` by default and enforces the
-`Authorization: Bearer sk-local-master` master key. Point OpenAI-compatible
-clients at `http://localhost:4000/v1` with that key.
+2. Start the proxy with Docker Compose:
 
-Override behaviour with CLI flags or environment variables (see
-`python litellm/local_openai_proxy.py --help`). The script can also print the
-generated config:
+   ```bash
+   docker-compose up --build
+   ```
+
+The server will start on `http://localhost:4000` with live code reloading for development.
+
+### Local Development
+
+1. Install the package and dependencies:
+
+   ```bash
+   pip install -e .
+   ```
+
+2. Configure your environment variables (see `.env.example`)
+
+3. Run the proxy:
+
+   ```bash
+   python -m src.main
+   ```
+
+## Configuration
+
+The proxy reads configuration from environment variables. Key settings include:
+
+- **LITELLM_HOST**: Host interface (default: 0.0.0.0)
+- **LITELLM_PORT**: Port number (default: 4000)
+- **LITELLM_MODEL_ALIAS**: Public model name (default: local-gpt)
+- **LITELLM_MASTER_KEY**: Master key for authentication (default: sk-local-master)
+- **OPENAI_MODEL**: Upstream model (default: gpt-4o)
+- **OPENAI_BASE_URL**: Upstream API base URL (default: https://api.openai.com/v1)
+- **OPENAI_API_KEY**: Your OpenAI API key
+
+### Using Custom Configuration
+
+You can provide your own LiteLLM configuration file:
 
 ```bash
-python litellm/local_openai_proxy.py --print-config
+# With Docker Compose
+docker-compose run --rm litellm-proxy python -m src.main --config /path/to/config.yaml
+
+# Local development
+python -m src.main --config /path/to/config.yaml
 ```
 
-To use a custom LiteLLM configuration, create `litellm/config.yaml` with your
-model mappings and start the proxy with:
+### Print Generated Configuration
+
+To see the auto-generated configuration:
 
 ```bash
-python litellm/local_openai_proxy.py --config litellm/config.yaml
+python -m src.main --print-config
 ```
 
-## Docker usage
+## Docker Usage
 
-```
-docker build -t litellm-local litellm
+### Docker Compose (Development)
+
+The `docker-compose.yml` is configured for development with:
+- **Live code reloading**: Changes to `src/` are reflected immediately
+- **Environment file support**: Uses `.env` for configuration
+- **Port mapping**: Exposes port 4000
+
+### Docker Standalone
+
+```bash
+# Build the image
+docker build -t litellm-launcher .
+
+# Run with environment file
 docker run --rm -p 4000:4000 \
-  --env-file litellm/.env \
-  litellm-local
-```
+  --env-file .env \
+  litellm-launcher
 
-Mount a custom config if required:
-
-```
+# Run with custom config
 docker run --rm -p 4000:4000 \
-  --env-file litellm/.env \
-  -v $(pwd)/my-config.yaml:/app/config.yaml \
-  litellm-local --config /app/config.yaml
+  --env-file .env \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  litellm-launcher --config /app/config.yaml
 ```
 
-The container entrypoint is the same script, so any CLI options are accepted
-after the image name.
-
-## Integrating clients
+## Client Integration
 
 Configure your OpenAI-compatible clients with:
 
-```
+```bash
 OPENAI_API_KEY=sk-local-master
 OPENAI_BASE_URL=http://localhost:4000
 ```
 
-Other SDKs (LangChain, LiteLLM `completion`, etc.) can point to the same local
-endpoint.
+### Example with OpenAI Python Client
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-local-master",
+    base_url="http://localhost:4000"
+)
+
+response = client.chat.completions.create(
+    model="local-gpt",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+### Other SDKs
+
+- **LangChain**: Use the same base URL and API key
+- **LiteLLM**: Point to the local endpoint
+- **Any OpenAI-compatible client**: Configure with the above settings
+
+## Development
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install -e ".[test]"
+
+# Run tests with coverage
+pytest
+```
+
+### Code Structure
+
+- `src/main.py`: Entry point and orchestration
+- `src/cli.py`: Command-line interface and argument parsing
+- `src/config.py`: Configuration file handling and validation
+- `src/proxy.py`: LiteLLM proxy server management
+- `src/utils.py`: Shared utilities (signal handling, dotenv loading, etc.)
+
+The modular structure makes it easy to extend functionality and maintain clean separation of concerns.
