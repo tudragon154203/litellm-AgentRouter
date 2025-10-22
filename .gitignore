@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 demo/
+*.zip
 
 debug-config.yaml
 
@@ -150,3 +151,4 @@ Thumbs.db
 # LiteLLM specific
 litellm-config-*.yaml
 *.log
+.aider*
