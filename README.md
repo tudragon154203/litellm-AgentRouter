@@ -1,4 +1,4 @@
-# LiteLLM Local Gateway
+# LiteLLM Local Gateway - AgentRouter GPT-5
 
 A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint. The proxy is useful when other local services expect the OpenAI client interface but you want to fan traffic out to any provider supported by LiteLLM.
 
@@ -36,7 +36,6 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
    cp .env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
-
 2. Start the proxy with Docker Compose:
 
    ```bash
@@ -64,9 +63,7 @@ This script demonstrates the exact configuration that works with your OpenAI-com
    pip install -r requirements.txt
    pip install -e .
    ```
-
 2. Configure your environment variables (see `.env.example`)
-
 3. Run the proxy:
 
    ```bash
@@ -130,17 +127,20 @@ The proxy supports controlling reasoning capabilities for models that benefit fr
 ### Configuration Methods
 
 #### Environment Variable
+
 ```bash
 export REASONING_EFFORT=high
 python -m src.main
 ```
 
 #### CLI Override
+
 ```bash
 python -m src.main --reasoning-effort medium
 ```
 
 #### Combined Usage
+
 ```bash
 export REASONING_EFFORT=low
 python -m src.main \
@@ -153,6 +153,7 @@ python -m src.main \
 ### Generated Configuration Examples
 
 #### With reasoning_effort="medium"
+
 ```yaml
 model_list:
   - model_name: "gpt-5-medium"
@@ -168,6 +169,7 @@ litellm_settings:
 ```
 
 #### With reasoning_effort="none"
+
 ```yaml
 model_list:
   - model_name: "gpt-5-none"
@@ -184,6 +186,7 @@ litellm_settings:
 ### Docker Usage with Reasoning
 
 #### Using Environment Variables
+
 ```bash
 # Add to .env file
 echo "REASONING_EFFORT=medium" >> .env
@@ -191,6 +194,7 @@ docker-compose up -d
 ```
 
 #### With docker-compose.yml Override
+
 ```yaml
 services:
   litellm-proxy:
@@ -215,6 +219,7 @@ services:
 ### Docker Compose (Development)
 
 The `docker-compose.yml` is configured for development with:
+
 - **Live code reloading**: Changes to `src/` are reflected immediately
 - **Environment file support**: Uses `.env` for configuration
 - **Port mapping**: Exposes port 4000
@@ -245,14 +250,14 @@ docker run --rm -p 4000:4000 \
 If you encounter authentication issues with the Docker container while the local demo script works:
 
 1. **Check the demo script**:
+
    ```bash
    python demo/minimal-litellm-test.py
    ```
-
 2. **Use the fixed configuration**:
    The container includes `debug-config.yaml` with the working configuration that matches the demo script.
-
 3. **Test the container**:
+
    ```bash
    curl -X POST http://localhost:4000/v1/chat/completions \
      -H "Content-Type: application/json" \
