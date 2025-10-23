@@ -44,16 +44,9 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
 
 The server will start on `http://localhost:4000` with live code reloading for development.
 
-### Working Demo
+## License
 
-A minimal working example is available in `demo/minimal-litellm-test.py`:
-
-```bash
-# Test the local LiteLLM setup directly
-python demo/minimal-litellm-test.py
-```
-
-This script demonstrates the exact configuration that works with your OpenAI-compatible endpoint.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ### Local Development
 
