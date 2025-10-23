@@ -154,3 +154,5 @@ litellm-config-*.yaml
 .aider*
   
 /*.ps1 
+  
+_claude.ps1  
