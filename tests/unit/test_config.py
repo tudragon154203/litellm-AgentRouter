@@ -194,6 +194,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = True
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         # Mock a valid config file
         config_file = tmp_path / "config.yaml"
@@ -218,6 +219,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = False
         args.drop_params = True
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {}, clear=True):
             with patch("sys.exit"):  # Mock sys.exit to prevent actual exit
@@ -238,6 +240,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = True
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {}, clear=True):  # Ensure the env var is not set
             with patch("sys.exit"):  # Mock sys.exit to prevent actual exit
@@ -263,6 +266,8 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = False
         args.print_config = False
+        args.reasoning_effort = "medium"
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {}, clear=True):
             with patch("sys.exit"):  # Mock sys.exit to prevent actual exit
@@ -283,6 +288,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = False
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {}, clear=True):
             with patch("sys.exit"):  # Mock sys.exit to prevent actual exit
@@ -303,6 +309,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = False
         args.drop_params = True
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {"CUSTOM_KEY": "sk-api-key"}):
             with patch("sys.exit"):  # Mock sys.exit to prevent actual exit
@@ -329,6 +336,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = True
         args.print_config = False
+        args.reasoning_effort = "medium"
 
         # Create a valid config file
         config_file = tmp_path / "config.yaml"
@@ -351,6 +359,7 @@ class TestPrepareConfigExtended:
         args.no_master_key = True
         args.drop_params = True
         args.print_config = True
+        args.reasoning_effort = "medium"
 
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(SystemExit) as exc_info:

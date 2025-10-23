@@ -9,7 +9,7 @@ echo "Starting LiteLLM proxy with configuration from environment variables..."
 # Include reasoning_effort if specified and not "none"
 cat > /app/generated-config.yaml << EOF
 model_list:
-  - model_name: "${LITELLM_MODEL_ALIAS:-gpt-5}"
+  - model_name: "gpt-5"
     litellm_params:
       model: "${OPENAI_MODEL:-gpt-5}"
       api_base: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
@@ -40,4 +40,4 @@ sed 's/\(api_key: "\)[^"]*/\1***MASKED***"/' /app/generated-config.yaml
 echo ""
 
 # Start the proxy with the generated config
-exec python -m src.main --config /app/generated-config.yaml --host "${LITELLM_HOST:-0.0.0.0}" --port "${LITELLM_PORT:-4000}"
+exec python -m src.main --config /app/generated-config.yaml --host "0.0.0.0" --port "${PORT:-4000}"

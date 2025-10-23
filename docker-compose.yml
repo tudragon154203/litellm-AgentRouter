@@ -2,7 +2,7 @@ services:
   litellm-proxy:
     build: .
     ports:
-      - "4000:4000"
+      - "${PORT:-4000}:4000"
     entrypoint: ["/bin/bash", "/app/entrypoint.sh"]
     volumes:
       - ./src:/app/src

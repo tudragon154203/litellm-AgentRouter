@@ -24,12 +24,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=os.getenv("LITELLM_CONFIG"),
+        default=None,
         help="Path to an existing LiteLLM config.yaml.",
     )
     parser.add_argument(
         "--alias",
-        default=os.getenv("LITELLM_MODEL_ALIAS", "gpt-5"),
+        default="gpt-5",
         help="Public model name to expose from the proxy.",
     )
     parser.add_argument(
@@ -60,31 +60,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--host",
-        default=os.getenv("LITELLM_HOST", "0.0.0.0"),
+        default="0.0.0.0",
         help="Host interface for the proxy.",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.getenv("LITELLM_PORT", "4000")),
+        default=int(os.getenv("PORT", "4000")),
         help="Port for the proxy.",
     )
     parser.add_argument(
         "--workers",
         type=int,
-        default=int(os.getenv("LITELLM_WORKERS", "1")),
+        default=1,
         help="Number of worker processes to run.",
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        default=env_bool("LITELLM_DEBUG"),
+        default=False,
         help="Enable LiteLLM debug logging.",
     )
     parser.add_argument(
         "--detailed-debug",
         action="store_true",
-        default=env_bool("LITELLM_DETAILED_DEBUG"),
+        default=False,
         help="Enable verbose LiteLLM proxy debug logging.",
     )
     parser.add_argument(
@@ -92,12 +92,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Disable setting a proxy master key in the generated config.",
     )
-    drop_default = env_bool("LITELLM_DROP_PARAMS", True)
     parser.add_argument(
         "--drop-params",
         dest="drop_params",
         action="store_true",
-        default=drop_default,
+        default=True,
         help="Enable litellm.drop_params in the generated config.",
     )
     parser.add_argument(

@@ -118,7 +118,8 @@ class TestCliReasoningEffort:
         }):
             args = parse_args([])
             assert args.reasoning_effort == "medium"
-            assert args.config == Path("/existing/config.yaml")
+            # LITELLM_CONFIG is now retired, should always be None
+            assert args.config is None
 
     def test_parse_args_reasoning_effort_empty_string(self):
         """Test that empty string reasoning_effort is handled."""

@@ -111,7 +111,7 @@ def test_env_overrides_host_port_and_master_key(tmp_path: Path):
         {
             "OPENAI_API_KEY": "sk-test-abc",
             "LITELLM_HOST": "127.0.0.1",
-            "LITELLM_PORT": "8088",
+            "PORT": "8088",
             "LITELLM_MASTER_KEY": "sk-local-override",
         }
     )

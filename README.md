@@ -75,16 +75,26 @@ This script demonstrates the exact configuration that works with your OpenAI-com
 
 ## Configuration
 
-The proxy reads configuration from environment variables. Key settings include:
+The proxy has hardcoded default settings for most configurations:
 
-- **LITELLM_HOST**: Host interface (default: 0.0.0.0)
-- **LITELLM_PORT**: Port number (default: 4000)
-- **LITELLM_MODEL_ALIAS**: Public model name (default: gpt-5)
+- **Model Alias**: gpt-5 (hardcoded)
+- **Master Key**: LITELLM_MASTER_KEY environment variable (default: sk-local-master)
+- **Host Interface**: 0.0.0.0 (hardcoded)
+- **Port**: PORT environment variable (default: 4000)
+- **Workers**: 1 (hardcoded)
+- **Debug**: false (hardcoded)
+- **Detailed Debug**: false (hardcoded)
+- **Drop Params**: true (hardcoded)
+
+Configurable settings via environment variables:
+
+- **PORT**: Port for the proxy (default: 4000)
 - **LITELLM_MASTER_KEY**: Master key for authentication (default: sk-local-master)
 - **OPENAI_MODEL**: Upstream model (default: gpt-5)
 - **OPENAI_BASE_URL**: Upstream API base URL (default: https://api.openai.com/v1)
 - **OPENAI_API_KEY**: Your OpenAI API key
 - **REASONING_EFFORT**: Reasoning effort level for supported models (default: medium)
+- **IS_STREAMING**: Enable streaming mode (default: true)
 
 ### Using Custom Configuration
 
@@ -186,10 +196,10 @@ services:
   litellm-proxy:
     environment:
       - REASONING_EFFORT=high
-      - LITELLM_MODEL_ALIAS=gpt-5-reasoning
       - OPENAI_MODEL=gpt-5
       - OPENAI_BASE_URL=https://agentrouter.org/v1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+    # Note: Model alias is hardcoded as "gpt-5"
 ```
 
 ### Behavior and Compatibility

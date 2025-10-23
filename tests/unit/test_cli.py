@@ -76,18 +76,20 @@ class TestParseArgs:
             assert args.print_config is True
 
     def test_parse_args_config_from_env(self):
-        """Test parse_args with config from environment variable."""
+        """Test parse_args with config - LITELLM_CONFIG is now retired (hardcoded to None)."""
         with patch.dict(os.environ, {"LITELLM_CONFIG": "/env/config.yaml"}):
             args = parse_args([])
 
-            assert args.config == Path("/env/config.yaml")
+            # LITELLM_CONFIG is now retired, should always be None
+            assert args.config is None
 
     def test_parse_args_alias_from_env(self):
-        """Test parse_args with alias from environment variable."""
+        """Test parse_args with alias - LITELLM_MODEL_ALIAS is now retired (hardcoded to 'gpt-5')."""
         with patch.dict(os.environ, {"LITELLM_MODEL_ALIAS": "env-model"}):
             args = parse_args([])
 
-            assert args.alias == "env-model"
+            # LITELLM_MODEL_ALIAS is now retired, should always be 'gpt-5'
+            assert args.alias == "gpt-5"
 
     def test_parse_args_model_from_env(self):
         """Test parse_args with model from environment variable."""
@@ -112,32 +114,35 @@ class TestParseArgs:
             assert args.master_key == "sk-env-master"
 
     def test_parse_args_host_from_env(self):
-        """Test parse_args with host from environment variable."""
+        """Test parse_args with host - LITELLM_HOST is now retired (hardcoded to '0.0.0.0')."""
         with patch.dict(os.environ, {"LITELLM_HOST": "127.0.0.1"}):
             args = parse_args([])
 
-            assert args.host == "127.0.0.1"
+            # LITELLM_HOST is now retired, should always be '0.0.0.0'
+            assert args.host == "0.0.0.0"
 
     def test_parse_args_port_from_env(self):
         """Test parse_args with port from environment variable."""
-        with patch.dict(os.environ, {"LITELLM_PORT": "8080"}):
+        with patch.dict(os.environ, {"PORT": "8080"}):
             args = parse_args([])
 
             assert args.port == 8080
 
     def test_parse_args_workers_from_env(self):
-        """Test parse_args with workers from environment variable."""
+        """Test parse_args with workers - LITELLM_WORKERS is now retired (hardcoded to 1)."""
         with patch.dict(os.environ, {"LITELLM_WORKERS": "4"}):
             args = parse_args([])
 
-            assert args.workers == 4
+            # LITELLM_WORKERS is now retired, should always be 1
+            assert args.workers == 1
 
     def test_parse_args_debug_from_env_true(self):
-        """Test parse_args with debug from environment variable (true)."""
+        """Test parse_args with debug - LITELLM_DEBUG is now retired (hardcoded to False)."""
         with patch.dict(os.environ, {"LITELLM_DEBUG": "1"}):
             args = parse_args([])
 
-            assert args.debug is True
+            # LITELLM_DEBUG is now retired, should always be False
+            assert args.debug is False
 
     def test_parse_args_debug_from_env_false(self):
         """Test parse_args with debug from environment variable (false)."""
@@ -147,11 +152,12 @@ class TestParseArgs:
             assert args.debug is False
 
     def test_parse_args_detailed_debug_from_env(self):
-        """Test parse_args with detailed debug from environment variable."""
+        """Test parse_args with detailed debug - LITELLM_DETAILED_DEBUG is now retired (hardcoded to False)."""
         with patch.dict(os.environ, {"LITELLM_DETAILED_DEBUG": "true"}):
             args = parse_args([])
 
-            assert args.detailed_debug is True
+            # LITELLM_DETAILED_DEBUG is now retired, should always be False
+            assert args.detailed_debug is False
 
     def test_parse_args_drop_params_from_env_true(self):
         """Test parse_args with drop_params from environment variable (true)."""
@@ -161,11 +167,12 @@ class TestParseArgs:
             assert args.drop_params is True
 
     def test_parse_args_drop_params_from_env_false(self):
-        """Test parse_args with drop_params from environment variable (false)."""
+        """Test parse_args with drop_params - LITELLM_DROP_PARAMS is now retired (hardcoded to True)."""
         with patch.dict(os.environ, {"LITELLM_DROP_PARAMS": "no"}):
             args = parse_args([])
 
-            assert args.drop_params is False
+            # LITELLM_DROP_PARAMS is now retired, should always be True
+            assert args.drop_params is True
 
     def test_parse_args_streaming_from_env_true(self):
         """Test parse_args with streaming from environment variable (true)."""
@@ -242,11 +249,7 @@ class TestParseArgs:
             "OPENAI_BASE_URL": "https://env.api.com/v1",
             "LITELLM_MASTER_KEY": "sk-env-master",
             "LITELLM_HOST": "127.0.0.1",
-            "LITELLM_PORT": "8080",
-            "LITELLM_WORKERS": "4",
-            "LITELLM_DEBUG": "1",
-            "LITELLM_DETAILED_DEBUG": "1",
-            "LITELLM_DROP_PARAMS": "no",
+            "PORT": "8080",
             "IS_STREAMING": "false",
         }
 
@@ -280,9 +283,7 @@ class TestParseArgs:
             assert args.drop_params is False  # overridden by --no-drop-params
             assert args.streaming is True  # overridden by --streaming (env was false)
 
-            # These should still come from env since not overridden
-            assert args.debug is True
-            assert args.detailed_debug is True
+            # Debug and detailed_debug are now hardcoded to False
 
     def test_parse_args_upstream_key_env_empty_string(self):
         """Test parse_args with empty string for upstream_key_env."""
@@ -369,18 +370,18 @@ class TestParseArgs:
                 parse_args(["--workers", "invalid"])
 
     def test_parse_args_mixed_case_booleans(self):
-        """Test parse_args with various boolean string formats in env."""
+        """Test parse_args with various boolean string formats - LITELLM_DEBUG is now retired (hardcoded to False)."""
         test_cases = [
-            ("1", True),
-            ("true", True),
-            ("True", True),
-            ("TRUE", True),
-            ("yes", True),
-            ("Yes", True),
-            ("YES", True),
-            ("on", True),
-            ("On", True),
-            ("ON", True),
+            ("1", False),  # Should be False now, not True
+            ("true", False),
+            ("True", False),
+            ("TRUE", False),
+            ("yes", False),
+            ("Yes", False),
+            ("YES", False),
+            ("on", False),
+            ("On", False),
+            ("ON", False),
             ("0", False),
             ("false", False),
             ("False", False),
@@ -396,7 +397,8 @@ class TestParseArgs:
         for env_value, expected in test_cases:
             with patch.dict(os.environ, {"LITELLM_DEBUG": env_value}):
                 args = parse_args([])
-                assert args.debug is expected, f"Failed for env value: {env_value}"
+                # LITELLM_DEBUG is now retired, should always be False
+                assert args.debug is False, f"Failed for env value: {env_value}"
 
     def test_parse_args_complex_combinations(self):
         """Test complex flag combinations from integration tests."""
