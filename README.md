@@ -58,9 +58,10 @@ This script demonstrates the exact configuration that works with your OpenAI-com
 
 ### Local Development
 
-1. Install the package and dependencies:
+1. Install dependencies and the package:
 
    ```bash
+   pip install -r requirements.txt
    pip install -e .
    ```
 
@@ -130,6 +131,8 @@ docker run --rm -p 4000:4000 \
   --env-file .env \
   -v $(pwd)/config.yaml:/app/config.yaml \
   litellm-launcher --config /app/config.yaml
+
+# Note: Dockerfile installs base deps from requirements.txt then the package in editable mode.
 ```
 
 ### Troubleshooting Docker Container

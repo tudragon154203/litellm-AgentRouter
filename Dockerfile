@@ -5,7 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install the package with dependencies
+# Install base dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install the package in editable mode
 COPY pyproject.toml /app/
 RUN pip install --no-cache-dir -e .
 
