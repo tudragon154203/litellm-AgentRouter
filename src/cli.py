@@ -125,4 +125,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Print the generated config and exit (useful for inspection).",
     )
+    reasoning_default = os.getenv("REASONING_EFFORT", "medium")
+    parser.add_argument(
+        "--reasoning-effort",
+        dest="reasoning_effort",
+        default=reasoning_default,
+        choices=["none", "low", "medium", "high"],
+        help="Reasoning effort level for supported models (default: from REASONING_EFFORT env var, defaults to 'medium').",
+    )
     return parser.parse_args(argv)

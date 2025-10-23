@@ -6,6 +6,7 @@ set -e
 echo "Starting LiteLLM proxy with configuration from environment variables..."
 
 # Generate config directly to match original debug-config.yaml format
+# Include reasoning_effort if specified and not "none"
 cat > /app/generated-config.yaml << EOF
 model_list:
   - model_name: "${LITELLM_MODEL_ALIAS:-gpt-5}"
@@ -17,6 +18,14 @@ model_list:
       headers:
         "User-Agent": "QwenCode/0.0.14 (win32; unknown)"
         "Content-Type": "application/json"
+EOF
+
+# Add reasoning_effort parameter if specified and not "none"
+if [[ -n "${REASONING_EFFORT}" && "${REASONING_EFFORT}" != "none" ]]; then
+  echo "      reasoning_effort: \"${REASONING_EFFORT}\"" >> /app/generated-config.yaml
+fi
+
+cat >> /app/generated-config.yaml << EOF
 
 litellm_settings:
   drop_params: true

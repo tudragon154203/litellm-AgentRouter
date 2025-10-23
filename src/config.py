@@ -24,6 +24,7 @@ def render_config(
     master_key: str | None,
     drop_params: bool,
     streaming: bool,
+    reasoning_effort: str | None = None,
 ) -> str:
     """Render a minimal LiteLLM proxy config."""
     # Convert model to openai/ format if it's not already prefixed
@@ -41,6 +42,10 @@ def render_config(
         lines.append(f"      api_key: {quote(f'os.environ/{upstream_key_env}')}")
     else:
         lines.append("      api_key: null")
+
+    # Add reasoning_effort parameter if specified and not "none"
+    if reasoning_effort and reasoning_effort != "none":
+        lines.append(f"      reasoning_effort: {quote(reasoning_effort)}")
 
     lines.append("")
 
@@ -87,6 +92,7 @@ def prepare_config(args: argparse.Namespace) -> Tuple[Path | str, bool]:
         master_key=master_key,
         drop_params=args.drop_params,
         streaming=args.streaming,
+        reasoning_effort=getattr(args, 'reasoning_effort', None),
     )
 
     if args.print_config:

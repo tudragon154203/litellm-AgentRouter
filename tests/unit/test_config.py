@@ -30,6 +30,7 @@ class TestRenderConfigSimple:
             master_key=None,
             drop_params=True,
             streaming=True,
+            reasoning_effort=None,
         )
 
         expected = """model_list:
@@ -55,6 +56,7 @@ litellm_settings:
             master_key="sk-master-key",
             drop_params=True,
             streaming=True,
+            reasoning_effort=None,
         )
 
         expected = """model_list:
@@ -83,6 +85,7 @@ general_settings:
             master_key=None,
             drop_params=False,
             streaming=False,
+            reasoning_effort=None,
         )
 
         expected = """model_list:
@@ -440,3 +443,163 @@ class TestRenderConfigEdgeCases:
         assert "gpt-5" in result
         assert "https://render-test.api.com/v1" in result
         assert "set_verbose: false" in result
+
+
+class TestRenderConfigReasoningEffort:
+    """Test cases for reasoning_effort parameter in render_config function."""
+
+    def test_render_config_with_reasoning_effort_low(self):
+        """Test rendering config with reasoning_effort='low'."""
+        result = render_config(
+            alias="reasoning-low-model",
+            upstream_model="gpt-5",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env="OPENAI_API_KEY",
+            master_key=None,
+            drop_params=True,
+            streaming=True,
+            reasoning_effort="low",
+        )
+
+        expected = """model_list:
+  - model_name: "reasoning-low-model"
+    litellm_params:
+      model: "openai/gpt-5"
+      api_base: "https://api.openai.com/v1"
+      api_key: "os.environ/OPENAI_API_KEY"
+      reasoning_effort: "low"
+
+litellm_settings:
+  drop_params: true
+  set_verbose: true
+"""
+        assert result == expected
+
+    def test_render_config_with_reasoning_effort_medium(self):
+        """Test rendering config with reasoning_effort='medium'."""
+        result = render_config(
+            alias="reasoning-medium-model",
+            upstream_model="gpt-5",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env=None,
+            master_key="sk-master",
+            drop_params=False,
+            streaming=False,
+            reasoning_effort="medium",
+        )
+
+        expected = """model_list:
+  - model_name: "reasoning-medium-model"
+    litellm_params:
+      model: "openai/gpt-5"
+      api_base: "https://api.openai.com/v1"
+      api_key: null
+      reasoning_effort: "medium"
+
+litellm_settings:
+  drop_params: false
+  set_verbose: false
+
+general_settings:
+  master_key: "sk-master"
+"""
+        assert result == expected
+
+    def test_render_config_with_reasoning_effort_high(self):
+        """Test rendering config with reasoning_effort='high'."""
+        result = render_config(
+            alias="reasoning-high-model",
+            upstream_model="gpt-5",
+            upstream_base="https://agentrouter.org/v1",
+            upstream_key_env="AGENTROUTER_KEY",
+            master_key=None,
+            drop_params=True,
+            streaming=True,
+            reasoning_effort="high",
+        )
+
+        # Check that reasoning_effort is included
+        assert 'reasoning_effort: "high"' in result
+        assert "reasoning-high-model" in result
+        assert "agentrouter.org" in result
+
+    def test_render_config_with_reasoning_effort_none(self):
+        """Test rendering config with reasoning_effort='none' (should not include parameter)."""
+        result = render_config(
+            alias="no-reasoning-model",
+            upstream_model="gpt-4",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env=None,
+            master_key=None,
+            drop_params=True,
+            streaming=True,
+            reasoning_effort="none",
+        )
+
+        # Should NOT include reasoning_effort parameter
+        assert "reasoning_effort" not in result
+        assert "no-reasoning-model" in result
+
+    def test_render_config_with_reasoning_effort_null(self):
+        """Test rendering config with reasoning_effort=None (should not include parameter)."""
+        result = render_config(
+            alias="null-reasoning-model",
+            upstream_model="gpt-4",
+            upstream_base="https://api.openai.com/v1",
+            upstream_key_env=None,
+            master_key=None,
+            drop_params=True,
+            streaming=True,
+            reasoning_effort=None,
+        )
+
+        # Should NOT include reasoning_effort parameter
+        assert "reasoning_effort" not in result
+        assert "null-reasoning-model" in result
+
+    def test_render_config_with_reasoning_effort_all_levels(self):
+        """Test all reasoning_effort levels with yaml parsing."""
+        effort_levels = ["low", "medium", "high"]
+
+        for effort in effort_levels:
+            result = render_config(
+                alias=f"model-{effort}",
+                upstream_model="gpt-5",
+                upstream_base="https://api.openai.com/v1",
+                upstream_key_env="API_KEY",
+                master_key=None,
+                drop_params=True,
+                streaming=True,
+                reasoning_effort=effort,
+            )
+
+            config = yaml.safe_load(result)
+
+            # Verify reasoning_effort is correctly set in litellm_params
+            assert config["model_list"][0]["litellm_params"]["reasoning_effort"] == effort
+            assert config["model_list"][0]["model_name"] == f"model-{effort}"
+
+    def test_render_config_reasoning_with_mixed_settings(self):
+        """Test reasoning_effort with various other settings."""
+        result = render_config(
+            alias="mixed-reasoning-model",
+            upstream_model="custom/gpt-5-reasoning",
+            upstream_base="https://custom-reasoning.api.com/v1",
+            upstream_key_env="CUSTOM_REASONING_KEY",
+            master_key="sk-reasoning-master",
+            drop_params=False,
+            streaming=False,
+            reasoning_effort="high",
+        )
+
+        config = yaml.safe_load(result)
+
+        # Verify all settings are present
+        assert config["model_list"][0]["model_name"] == "mixed-reasoning-model"
+        assert config["model_list"][0]["litellm_params"]["model"] == "openai/custom/gpt-5-reasoning"
+        assert config["model_list"][0]["litellm_params"]["api_base"] == "https://custom-reasoning.api.com/v1"
+        assert config["model_list"][0]["litellm_params"]["api_key"] == "os.environ/CUSTOM_REASONING_KEY"
+        assert config["model_list"][0]["litellm_params"]["reasoning_effort"] == "high"
+        assert config["litellm_settings"]["drop_params"] is False
+        assert config["litellm_settings"]["set_verbose"] is False
+        assert config["general_settings"]["master_key"] == "sk-reasoning-master"
