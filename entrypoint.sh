@@ -30,6 +30,10 @@ cat >> /app/generated-config.yaml << EOF
 litellm_settings:
   drop_params: true
 
+# Default completion parameters (can be overridden per-request)
+completion_params:
+  max_tokens: ${MAX_TOKENS:-8192}
+
 general_settings:
   master_key: "${LITELLM_MASTER_KEY:-sk-local-master}"
 EOF
