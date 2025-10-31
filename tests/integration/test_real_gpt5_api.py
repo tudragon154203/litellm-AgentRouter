@@ -31,7 +31,6 @@ class TestRealGPT5API:
     def _call_gpt5_api_not_stream(self, **kwargs):
         """Helper method to call GPT-5 API (non-streaming only)."""
         import litellm
-        import sys
 
         # Ensure streaming is disabled for this method
         if 'stream' in kwargs:
@@ -55,7 +54,6 @@ class TestRealGPT5API:
     def _call_gpt5_api_streaming(self, **kwargs):
         """Helper method to call GPT-5 API with streaming."""
         import litellm
-        import sys
 
         # Use the same format as the working demo
         default_params = {
@@ -74,7 +72,6 @@ class TestRealGPT5API:
 
     def test_gpt5_basic_completion(self):
         """Test basic GPT-5 completion with a simple prompt."""
-        import litellm
 
         response = self._call_gpt5_api_not_stream(
             messages=[{"role": "user", "content": "Hello"}],
@@ -104,7 +101,6 @@ class TestRealGPT5API:
 
     def test_gpt5_with_system_message(self):
         """Test GPT-5 completion with a system message."""
-        import litellm
 
         response = self._call_gpt5_api_not_stream(
             messages=[
@@ -126,7 +122,6 @@ class TestRealGPT5API:
 
     def test_gpt5_streaming_completion(self):
         """Test GPT-5 completion with streaming enabled."""
-        import litellm
 
         response_stream = self._call_gpt5_api_streaming(
             messages=[{"role": "user", "content": "Count from 1 to 5"}],
@@ -165,5 +160,3 @@ class TestRealGPT5API:
         last_chunk = chunks[-1]
         if hasattr(last_chunk, 'usage') and last_chunk.usage:
             assert last_chunk.usage.total_tokens > 0
-
-

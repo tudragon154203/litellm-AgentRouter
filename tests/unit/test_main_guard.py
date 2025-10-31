@@ -7,8 +7,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from src.main import main
 
 
@@ -27,13 +25,13 @@ class TestMainGuard:
             })()
 
             with patch("src.main.parse_args", return_value=mock_args), \
-                 patch("src.main.load_dotenv_files"), \
-                 patch("src.main.validate_prereqs"), \
-                 patch("src.main.attach_signal_handlers"), \
-                 patch("src.main.prepare_config", return_value=("config", True)), \
-                 patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
-                 patch("src.main.start_proxy"), \
-                 patch("sys.exit") as mock_exit:
+                    patch("src.main.load_dotenv_files"), \
+                    patch("src.main.validate_prereqs"), \
+                    patch("src.main.attach_signal_handlers"), \
+                    patch("src.main.prepare_config", return_value=("config", True)), \
+                    patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
+                    patch("src.main.start_proxy"), \
+                    patch("sys.exit") as mock_exit:
 
                 # Configure mocks to simulate successful execution
                 mock_temp_path = Path("/tmp/config.yaml")

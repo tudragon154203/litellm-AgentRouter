@@ -4,14 +4,9 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import tempfile
-import time
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import requests
 import yaml
 
 from src.config import render_config
@@ -263,9 +258,7 @@ class TestReasoningEffortIntegration:
         """End-to-end test with real API call using reasoning_effort (requires API key)."""
         import tempfile
         import subprocess
-        import signal
         import time
-        import requests
 
         # Create config with reasoning_effort
         config_text = render_config(

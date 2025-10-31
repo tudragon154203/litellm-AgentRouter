@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import sys
+import sys  # noqa: F401  # Used in patch("sys.exit")
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -268,8 +268,8 @@ class TestMain:
         for host, port, alias in test_cases:
             # Reset mocks
             for mock in [mock_load_dotenv, mock_validate, mock_parse_args,
-                        mock_attach_signals, mock_prepare_config, mock_create_temp,
-                        mock_start_proxy]:
+                         mock_attach_signals, mock_prepare_config, mock_create_temp,
+                         mock_start_proxy]:
                 mock.reset_mock()
 
             mock_args = MagicMock()
@@ -378,13 +378,13 @@ class TestMain:
         mock_args.alias = "test-model"
 
         with patch("src.main.parse_args", return_value=mock_args), \
-             patch("src.main.load_dotenv_files"), \
-             patch("src.main.validate_prereqs"), \
-             patch("src.main.attach_signal_handlers"), \
-             patch("src.main.prepare_config", return_value=("config", True)), \
-             patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
-             patch("src.main.start_proxy") as mock_start_proxy, \
-             patch("sys.exit") as mock_exit:
+                patch("src.main.load_dotenv_files"), \
+                patch("src.main.validate_prereqs"), \
+                patch("src.main.attach_signal_handlers"), \
+                patch("src.main.prepare_config", return_value=("config", True)), \
+                patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
+                patch("src.main.start_proxy"), \
+                patch("sys.exit") as mock_exit:
 
             # Configure mocks
             mock_temp_path = Path("/tmp/config.yaml")
@@ -404,13 +404,13 @@ class TestMain:
         mock_args.alias = "test-model"
 
         with patch("src.main.parse_args", return_value=mock_args), \
-             patch("src.main.load_dotenv_files"), \
-             patch("src.main.validate_prereqs"), \
-             patch("src.main.attach_signal_handlers"), \
-             patch("src.main.prepare_config", return_value=("config", True)), \
-             patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
-             patch("src.main.start_proxy"), \
-             patch("sys.exit") as mock_exit:
+                patch("src.main.load_dotenv_files"), \
+                patch("src.main.validate_prereqs"), \
+                patch("src.main.attach_signal_handlers"), \
+                patch("src.main.prepare_config", return_value=("config", True)), \
+                patch("src.main.create_temp_config_if_needed") as mock_create_temp, \
+                patch("src.main.start_proxy"), \
+                patch("sys.exit") as mock_exit:
 
             # Configure mocks to simulate successful execution
             mock_temp_path = Path("/tmp/config.yaml")

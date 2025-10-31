@@ -11,10 +11,9 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
 │   ├── config.py        # Configuration management
 │   ├── proxy.py         # Proxy server logic
 │   └── utils.py         # Utility functions
-├── demo/
-│   └── minimal-litellm-test.py  # Working demo script
+├── demo/                        # Demo scripts and examples
 ├── docker-compose.yml   # Docker Compose configuration
-├── debug-config.yaml    # Fixed configuration for Docker container
+
 ├── Dockerfile          # Docker image definition
 ├── pyproject.toml      # Python package configuration
 ├── .env.example        # Example environment variables
@@ -42,7 +41,7 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
    docker-compose up --build
    ```
 
-The server will start on `http://localhost:4000` with live code reloading for development.
+The server will start on `http://localhost:4000` with live code reloading for development (via bind mount of ./src into the container).
 
 ## License
 
@@ -65,16 +64,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Configuration
 
-The proxy has hardcoded default settings for most configurations:
+The proxy provides sensible defaults that are configurable via CLI flags or environment variables:
 
-- **Model Alias**: gpt-5 (hardcoded)
-- **Master Key**: LITELLM_MASTER_KEY environment variable (default: sk-local-master)
-- **Host Interface**: 0.0.0.0 (hardcoded)
-- **Port**: PORT environment variable (default: 4000)
-- **Workers**: 1 (hardcoded)
-- **Debug**: false (hardcoded)
-- **Detailed Debug**: false (hardcoded)
-- **Drop Params**: true (hardcoded)
+- **Model Alias**: default gpt-5 (CLI: --alias)
+- **Master Key**: default from LITELLM_MASTER_KEY (CLI: --master-key, or --no-master-key)
+- **Host Interface**: default 0.0.0.0 (CLI: --host)
+- **Port**: default 4000 (env PORT or CLI: --port)
+- **Workers**: default 1 (CLI: --workers)
+- **Debug**: default false (CLI: --debug, --detailed-debug)
+- **Drop Params**: default true (CLI: --drop-params / --no-drop-params)
 
 Configurable settings via environment variables:
 
@@ -85,6 +83,8 @@ Configurable settings via environment variables:
 - **OPENAI_API_KEY**: Your OpenAI API key
 - **REASONING_EFFORT**: Reasoning effort level for supported models (default: medium)
 - **IS_STREAMING**: Enable streaming mode (default: true)
+- CLI `--model` default is `gpt-5`
+- Note: `set_verbose` in the generated config mirrors the streaming flag (true when streaming is enabled)
 
 ### Using Custom Configuration
 
@@ -216,7 +216,7 @@ The `docker-compose.yml` is configured for development with:
 - **Live code reloading**: Changes to `src/` are reflected immediately
 - **Environment file support**: Uses `.env` for configuration
 - **Port mapping**: Exposes port 4000
-- **Fixed configuration**: Uses `debug-config.yaml` for reliable OpenAI-compatible endpoint support
+- **Generated configuration**: Entrypoint writes `/app/generated-config.yaml` from environment variables
 
 ### Docker Standalone
 
@@ -242,13 +242,16 @@ docker run --rm -p 4000:4000 \
 
 If you encounter authentication issues with the Docker container while the local demo script works:
 
-1. **Check the demo script**:
+1. **Quick test with curl** (from host):
 
    ```bash
-   python demo/minimal-litellm-test.py
+   curl -X POST http://localhost:4000/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer ${LITELLM_MASTER_KEY:-sk-local-master}" \
+     -d '{"model": "gpt-5", "messages": [{"role": "user", "content": "Hello!"}]}'
    ```
-2. **Use the fixed configuration**:
-   The container includes `debug-config.yaml` with the working configuration that matches the demo script.
+2. **Generated configuration**:
+   The container writes `/app/generated-config.yaml` based on `.env` and CLI flags.
 3. **Test the container**:
 
    ```bash

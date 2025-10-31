@@ -3,10 +3,8 @@
 
 from __future__ import annotations
 
-import json
 import os
 import signal
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -121,7 +119,6 @@ class TestLoadDotenvFiles:
 
     def test_load_dotenv_files_handles_file_read_error(self, tmp_path):
         """Test that file read errors are handled gracefully."""
-        env_file = tmp_path / ".env"
 
         with patch("src.utils.Path") as mock_path_class:
             mock_script_dir = tmp_path

@@ -34,7 +34,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default=os.getenv("OPENAI_MODEL", "gpt-4o"),
+        default=os.getenv("OPENAI_MODEL", "gpt-5"),
         help="Upstream provider model identifier.",
     )
     parser.add_argument(

@@ -153,6 +153,7 @@ class TestStartProxySimple:
         with pytest.raises(SystemExit) as exc_info:
             start_proxy(args, config_path)
         assert exc_info.value.code == 1
+
     @patch("litellm.proxy.proxy_cli.run_server")
     def test_start_proxy_detailed_debug_specific(self, mock_run_server):
         """Test that detailed_debug flag properly appends --detailed_debug (covers line 30)."""

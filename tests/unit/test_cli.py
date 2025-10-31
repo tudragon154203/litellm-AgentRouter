@@ -22,7 +22,7 @@ class TestParseArgs:
 
             assert args.config is None
             assert args.alias == "gpt-5"
-            assert args.model == "gpt-4o"
+            assert args.model == "gpt-5"
             assert args.upstream_base == "https://api.openai.com/v1"
             assert args.upstream_key_env == "OPENAI_API_KEY"
             assert args.master_key == "sk-local-master"
@@ -104,7 +104,6 @@ class TestParseArgs:
             args = parse_args([])
 
             assert args.upstream_base == "https://env.api.com/v1"
-
 
     def test_parse_args_master_key_from_env(self):
         """Test parse_args with master key from environment variable."""

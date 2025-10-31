@@ -39,5 +39,3 @@ def skip_if_no_api_key():
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("OPENAI_API_KEY environment variable not set")
-
-
