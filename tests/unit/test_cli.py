@@ -23,7 +23,7 @@ class TestParseArgs:
             assert args.config is None
             assert args.alias == "gpt-5"
             assert args.model == "gpt-5"
-            assert args.upstream_base == "https://api.openai.com/v1"
+            assert args.upstream_base == "https://agentrouter.org/v1"
             assert args.upstream_key_env == "OPENAI_API_KEY"
             assert args.master_key == "sk-local-master"
             assert args.host == "0.0.0.0"

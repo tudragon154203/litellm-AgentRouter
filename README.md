@@ -11,7 +11,6 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
 │   ├── config.py        # Configuration management
 │   ├── proxy.py         # Proxy server logic
 │   └── utils.py         # Utility functions
-├── demo/                        # Demo scripts and examples
 ├── docker-compose.yml   # Docker Compose configuration
 
 ├── Dockerfile          # Docker image definition
@@ -149,7 +148,7 @@ python -m src.main \
 
 ```yaml
 model_list:
-  - model_name: "gpt-5-medium"
+  - model_name: "gpt-5"
     litellm_params:
       model: "openai/gpt-5"
       api_base: "https://agentrouter.org/v1"
@@ -159,13 +158,16 @@ model_list:
 litellm_settings:
   drop_params: true
   set_verbose: true
+
+general_settings:
+  master_key: "sk-local-master"
 ```
 
 #### With reasoning_effort="none"
 
 ```yaml
 model_list:
-  - model_name: "gpt-5-none"
+  - model_name: "gpt-5"
     litellm_params:
       model: "openai/gpt-5"
       api_base: "https://agentrouter.org/v1"
@@ -174,6 +176,9 @@ model_list:
 litellm_settings:
   drop_params: true
   set_verbose: true
+
+general_settings:
+  master_key: "sk-local-master"
 ```
 
 ### Docker Usage with Reasoning

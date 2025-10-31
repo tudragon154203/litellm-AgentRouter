@@ -40,7 +40,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--upstream-base",
         dest="upstream_base",
-        default=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        default=os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1"),
         help="Base URL for the upstream OpenAI-compatible endpoint.",
     )
     parser.add_argument(

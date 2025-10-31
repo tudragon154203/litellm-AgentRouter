@@ -25,7 +25,7 @@ class TestRenderConfigSimple:
         result = render_config(
             alias="test-model",
             upstream_model="gpt-4",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
@@ -37,7 +37,7 @@ class TestRenderConfigSimple:
   - model_name: "test-model"
     litellm_params:
       model: "openai/gpt-4"
-      api_base: "https://api.openai.com/v1"
+      api_base: "https://agentrouter.org/v1"
       api_key: null
 
 litellm_settings:
@@ -51,7 +51,7 @@ litellm_settings:
         result = render_config(
             alias="streaming-model",
             upstream_model="gpt-4",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env="OPENAI_API_KEY",
             master_key="sk-master-key",
             drop_params=True,
@@ -63,7 +63,7 @@ litellm_settings:
   - model_name: "streaming-model"
     litellm_params:
       model: "openai/gpt-4"
-      api_base: "https://api.openai.com/v1"
+      api_base: "https://agentrouter.org/v1"
       api_key: "os.environ/OPENAI_API_KEY"
 
 litellm_settings:
@@ -80,7 +80,7 @@ general_settings:
         result = render_config(
             alias="non-streaming-model",
             upstream_model="gpt-3.5-turbo",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env="OPENAI_API_KEY",
             master_key=None,
             drop_params=False,
@@ -92,7 +92,7 @@ general_settings:
   - model_name: "non-streaming-model"
     litellm_params:
       model: "openai/gpt-3.5-turbo"
-      api_base: "https://api.openai.com/v1"
+      api_base: "https://agentrouter.org/v1"
       api_key: "os.environ/OPENAI_API_KEY"
 
 litellm_settings:
@@ -188,7 +188,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = "API_KEY"
         args.master_key = None
         args.no_master_key = True
@@ -213,7 +213,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = None
         args.master_key = "sk-custom-master"
         args.no_master_key = False
@@ -234,7 +234,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = "MISSING_API_KEY"  # This env var is not set
         args.master_key = None
         args.no_master_key = True
@@ -260,7 +260,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = None
         args.master_key = None
         args.no_master_key = True
@@ -282,7 +282,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = None
         args.master_key = None
         args.no_master_key = True
@@ -330,7 +330,7 @@ class TestPrepareConfigExtended:
         args.config = str(tmp_path / "config.yaml")
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = None
         args.master_key = None
         args.no_master_key = True
@@ -353,7 +353,7 @@ class TestPrepareConfigExtended:
         args.config = None
         args.alias = "test-model"
         args.model = "gpt-4"
-        args.upstream_base = "https://api.openai.com/v1"
+        args.upstream_base = "https://agentrouter.org/v1"
         args.upstream_key_env = None
         args.master_key = None
         args.no_master_key = True
@@ -411,7 +411,7 @@ class TestRenderConfigEdgeCases:
             result = render_config(
                 alias=alias,
                 upstream_model="gpt-4",
-                upstream_base="https://api.openai.com/v1",
+                upstream_base="https://agentrouter.org/v1",
                 upstream_key_env=None,
                 master_key=None,
                 drop_params=True,
@@ -426,7 +426,7 @@ class TestRenderConfigEdgeCases:
         result = render_config(
             alias=long_alias,
             upstream_model="gpt-4",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
@@ -462,7 +462,7 @@ class TestRenderConfigReasoningEffort:
         result = render_config(
             alias="reasoning-low-model",
             upstream_model="gpt-5",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env="OPENAI_API_KEY",
             master_key=None,
             drop_params=True,
@@ -474,7 +474,7 @@ class TestRenderConfigReasoningEffort:
   - model_name: "reasoning-low-model"
     litellm_params:
       model: "openai/gpt-5"
-      api_base: "https://api.openai.com/v1"
+      api_base: "https://agentrouter.org/v1"
       api_key: "os.environ/OPENAI_API_KEY"
       reasoning_effort: "low"
 
@@ -489,7 +489,7 @@ litellm_settings:
         result = render_config(
             alias="reasoning-medium-model",
             upstream_model="gpt-5",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env=None,
             master_key="sk-master",
             drop_params=False,
@@ -501,7 +501,7 @@ litellm_settings:
   - model_name: "reasoning-medium-model"
     litellm_params:
       model: "openai/gpt-5"
-      api_base: "https://api.openai.com/v1"
+      api_base: "https://agentrouter.org/v1"
       api_key: null
       reasoning_effort: "medium"
 
@@ -537,7 +537,7 @@ general_settings:
         result = render_config(
             alias="no-reasoning-model",
             upstream_model="gpt-4",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
@@ -554,7 +554,7 @@ general_settings:
         result = render_config(
             alias="null-reasoning-model",
             upstream_model="gpt-4",
-            upstream_base="https://api.openai.com/v1",
+            upstream_base="https://agentrouter.org/v1",
             upstream_key_env=None,
             master_key=None,
             drop_params=True,
@@ -574,7 +574,7 @@ general_settings:
             result = render_config(
                 alias=f"model-{effort}",
                 upstream_model="gpt-5",
-                upstream_base="https://api.openai.com/v1",
+                upstream_base="https://agentrouter.org/v1",
                 upstream_key_env="API_KEY",
                 master_key=None,
                 drop_params=True,

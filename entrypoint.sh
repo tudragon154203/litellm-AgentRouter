@@ -12,7 +12,7 @@ model_list:
   - model_name: "gpt-5"
     litellm_params:
       model: "${OPENAI_MODEL:-gpt-5}"
-      api_base: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+      api_base: "${OPENAI_BASE_URL:-https://agentrouter.org/v1}"
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
       headers:
