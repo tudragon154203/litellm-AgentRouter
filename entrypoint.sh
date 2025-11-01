@@ -5,13 +5,21 @@ set -e
 
 echo "Starting LiteLLM proxy with configuration from environment variables..."
 
-# Generate config directly to match original debug-config.yaml format
-# Include reasoning_effort if specified and not "none"
+# Start with basic config structure
 cat > /app/generated-config.yaml << EOF
 model_list:
-  - model_name: "gpt-5"
+EOF
+
+# Helper function to add model to config
+add_model() {
+    local alias="$1"
+    local upstream_model="$2"
+    local reasoning_effort="$3"
+
+    cat >> /app/generated-config.yaml << EOF
+  - model_name: "${alias}"
     litellm_params:
-      model: "${OPENAI_MODEL:-gpt-5}"
+      model: "${upstream_model}"
       api_base: "${OPENAI_BASE_URL:-https://agentrouter.org/v1}"
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
@@ -20,11 +28,22 @@ model_list:
         "Content-Type": "application/json"
 EOF
 
-# Add reasoning_effort parameter if specified and not "none"
-if [[ -n "${REASONING_EFFORT}" && "${REASONING_EFFORT}" != "none" ]]; then
-  echo "      reasoning_effort: \"${REASONING_EFFORT}\"" >> /app/generated-config.yaml
+    # Add reasoning_effort parameter if specified and not "none"
+    if [[ -n "${reasoning_effort}" && "${reasoning_effort}" != "none" ]]; then
+      echo "      reasoning_effort: \"${reasoning_effort}\"" >> /app/generated-config.yaml
+    fi
+}
+
+# Add models based on configuration
+if [[ -n "${MODEL_GPT5_ALIAS}" ]]; then
+    add_model "${MODEL_GPT5_ALIAS}" "${MODEL_GPT5_UPSTREAM_MODEL:-gpt-5}" "${MODEL_GPT5_REASONING_EFFORT:-none}"
 fi
 
+if [[ -n "${MODEL_DEEPSEEK_ALIAS}" ]]; then
+    add_model "${MODEL_DEEPSEEK_ALIAS}" "${MODEL_DEEPSEEK_UPSTREAM_MODEL:-deepseek-v3.2}" "${MODEL_DEEPSEEK_REASONING_EFFORT:-none}"
+fi
+
+# Add shared configuration
 cat >> /app/generated-config.yaml << EOF
 
 litellm_settings:
