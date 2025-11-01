@@ -43,6 +43,10 @@ if [[ -n "${MODEL_DEEPSEEK_ALIAS}" ]]; then
     add_model "${MODEL_DEEPSEEK_ALIAS}" "${MODEL_DEEPSEEK_UPSTREAM_MODEL:-deepseek-v3.2}" "${MODEL_DEEPSEEK_REASONING_EFFORT:-none}"
 fi
 
+if [[ -n "${MODEL_GLM_ALIAS}" ]]; then
+    add_model "${MODEL_GLM_ALIAS}" "${MODEL_GLM_UPSTREAM_MODEL:-glm-4.6}" "${MODEL_GLM_REASONING_EFFORT:-none}"
+fi
+
 # Add shared configuration
 cat >> /app/generated-config.yaml << EOF
 
