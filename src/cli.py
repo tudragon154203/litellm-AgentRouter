@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 from .utils import env_bool
+from .config import load_model_specs_from_cli
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -130,6 +131,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="reasoning_effort",
         default=reasoning_default,
         choices=["none", "low", "medium", "high"],
-        help="Reasoning effort level for supported models (default: from REASONING_EFFORT env var, defaults to 'medium').",
+        help=(
+            "Reasoning effort level for supported models (default: from "
+            "REASONING_EFFORT env var, defaults to 'medium')."
+        ),
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--model-spec",
+        dest="model_specs",
+        action="append",
+        help=(
+            "Model specification for multi-model proxy. Format: "
+            "key=xxx,alias=xxx,upstream=xxx[,base=xxx][,key_env=xxx][,reasoning=xxx]. "
+            "Can be used multiple times."
+        ),
+    )
+
+    args = parser.parse_args(argv)
+
+    # Parse model specs if provided
+    if args.model_specs:
+        try:
+            args.model_specs = load_model_specs_from_cli(args.model_specs)
+        except ValueError as e:
+            parser.error(f"Invalid model specification: {e}")
+
+    return args

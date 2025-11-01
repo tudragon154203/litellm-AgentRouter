@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,11 +13,27 @@ import pytest
 from src.proxy import start_proxy
 
 
+def _stub_run_server():
+    run_server = MagicMock()
+    run_server.main = MagicMock()
+    proxy_cli = ModuleType("proxy_cli")
+    proxy_cli.run_server = run_server
+    proxy = ModuleType("proxy")
+    proxy.proxy_cli = proxy_cli
+    litellm = ModuleType("litellm")
+    litellm.proxy = proxy
+    modules = {
+        "litellm": litellm,
+        "litellm.proxy": proxy,
+        "litellm.proxy.proxy_cli": proxy_cli,
+    }
+    return run_server, modules
+
+
 class TestStartProxySimple:
     """Test cases for start_proxy function."""
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_basic(self, mock_run_server):
+    def test_start_proxy_basic(self):
         """Test start_proxy with basic arguments."""
         args = MagicMock()
         args.host = "127.0.0.1"
@@ -26,7 +44,9 @@ class TestStartProxySimple:
 
         config_path = Path("/path/to/config.yaml")
 
-        start_proxy(args, config_path)
+        mock_run_server, modules = _stub_run_server()
+        with patch.dict(sys.modules, modules):
+            start_proxy(args, config_path)
 
         # Verify run_server.main was called with correct arguments
         mock_run_server.main.assert_called_once()
@@ -41,8 +61,7 @@ class TestStartProxySimple:
         assert call_args == expected_args
         assert mock_run_server.main.call_args[1]["standalone_mode"] is False
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_with_debug(self, mock_run_server):
+    def test_start_proxy_with_debug(self):
         """Test start_proxy with debug enabled."""
         args = MagicMock()
         args.host = "localhost"
@@ -53,7 +72,9 @@ class TestStartProxySimple:
 
         config_path = Path("/debug/config.yaml")
 
-        start_proxy(args, config_path)
+        mock_run_server, modules = _stub_run_server()
+        with patch.dict(sys.modules, modules):
+            start_proxy(args, config_path)
 
         call_args = mock_run_server.main.call_args[0][0]
 
@@ -66,8 +87,7 @@ class TestStartProxySimple:
         ]
         assert call_args == expected_args
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_system_exit_code_zero(self, mock_run_server):
+    def test_start_proxy_system_exit_code_zero(self):
         """Test that SystemExit with code 0 is not re-raised."""
         args = MagicMock()
         args.host = "localhost"
@@ -79,13 +99,13 @@ class TestStartProxySimple:
         config_path = Path("/config.yaml")
 
         # Simulate SystemExit with code 0 (normal termination)
+        mock_run_server, modules = _stub_run_server()
         mock_run_server.main.side_effect = SystemExit(0)
 
-        # Should not raise an exception
-        start_proxy(args, config_path)
+        with patch.dict(sys.modules, modules):
+            start_proxy(args, config_path)
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_system_exit_nonzero_reraises(self, mock_run_server):
+    def test_start_proxy_system_exit_nonzero_reraises(self):
         """Test that SystemExit with non-zero code is re-raised."""
         args = MagicMock()
         args.host = "localhost"
@@ -97,15 +117,15 @@ class TestStartProxySimple:
         config_path = Path("/config.yaml")
 
         # Simulate SystemExit with non-zero code (error)
+        mock_run_server, modules = _stub_run_server()
         mock_run_server.main.side_effect = SystemExit(1)
 
-        # Should re-raise the exception
-        with pytest.raises(SystemExit) as exc_info:
-            start_proxy(args, config_path)
+        with patch.dict(sys.modules, modules):
+            with pytest.raises(SystemExit) as exc_info:
+                start_proxy(args, config_path)
         assert exc_info.value.code == 1
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_system_exit_code_none_reraises(self, mock_run_server):
+    def test_start_proxy_system_exit_code_none_reraises(self):
         """Test that SystemExit with code None is not re-raised."""
         args = MagicMock()
         args.host = "localhost"
@@ -117,13 +137,13 @@ class TestStartProxySimple:
         config_path = Path("/config.yaml")
 
         # Simulate SystemExit with code None
+        mock_run_server, modules = _stub_run_server()
         mock_run_server.main.side_effect = SystemExit(None)
 
-        # Should not raise an exception (caught inside start_proxy)
-        start_proxy(args, config_path)
+        with patch.dict(sys.modules, modules):
+            start_proxy(args, config_path)
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_line_30_coverage(self, mock_run_server):
+    def test_start_proxy_line_30_coverage(self):
         """Test that covers line 30 in proxy.py - the specific logic for SystemExit handling."""
         args = MagicMock()
         args.host = "localhost"
@@ -135,27 +155,23 @@ class TestStartProxySimple:
         config_path = Path("/config.yaml")
 
         # Test SystemExit with code 0 (should not be re-raised)
-        mock_run_server.main.side_effect = SystemExit(0)
-        start_proxy(args, config_path)  # Should not raise
+        mock_run_server, modules = _stub_run_server()
 
-        # Reset for next test
-        mock_run_server.reset_mock()
-
-        # Test SystemExit with None (should not be re-raised)
-        mock_run_server.main.side_effect = SystemExit(None)
-        start_proxy(args, config_path)  # Should not raise
-
-        # Reset for next test
-        mock_run_server.reset_mock()
-
-        # Test SystemExit with non-zero code (should be re-raised)
-        mock_run_server.main.side_effect = SystemExit(1)
-        with pytest.raises(SystemExit) as exc_info:
+        with patch.dict(sys.modules, modules):
+            mock_run_server.main.side_effect = SystemExit(0)
             start_proxy(args, config_path)
+
+            mock_run_server.reset_mock()
+            mock_run_server.main.side_effect = SystemExit(None)
+            start_proxy(args, config_path)
+
+            mock_run_server.reset_mock()
+            mock_run_server.main.side_effect = SystemExit(1)
+            with pytest.raises(SystemExit) as exc_info:
+                start_proxy(args, config_path)
         assert exc_info.value.code == 1
 
-    @patch("litellm.proxy.proxy_cli.run_server")
-    def test_start_proxy_detailed_debug_specific(self, mock_run_server):
+    def test_start_proxy_detailed_debug_specific(self):
         """Test that detailed_debug flag properly appends --detailed_debug (covers line 30)."""
         args = MagicMock()
         args.host = "localhost"
@@ -166,7 +182,9 @@ class TestStartProxySimple:
 
         config_path = Path("/config.yaml")
 
-        start_proxy(args, config_path)
+        mock_run_server, modules = _stub_run_server()
+        with patch.dict(sys.modules, modules):
+            start_proxy(args, config_path)
 
         call_args = mock_run_server.main.call_args[0][0]
 

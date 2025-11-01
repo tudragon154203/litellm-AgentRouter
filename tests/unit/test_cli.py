@@ -439,3 +439,71 @@ class TestParseArgs:
                     assert args.no_master_key == test_config["expected_no_master_key"]
                 if "expected_alias" in test_config:
                     assert args.alias == test_config["expected_alias"]
+
+    def test_parse_args_model_spec_single(self):
+        """Test parsing --model-spec argument with single model."""
+        argv = ["--model-spec", "key=test,alias=test-model,upstream=gpt-5"]
+
+        with patch.dict(os.environ, {}, clear=True):
+            args = parse_args(argv)
+
+        assert len(args.model_specs) == 1
+        assert args.model_specs[0].key == "test"
+        assert args.model_specs[0].alias == "test-model"
+        assert args.model_specs[0].upstream_model == "gpt-5"
+
+    def test_parse_args_model_spec_multiple(self):
+        """Test parsing --model-spec argument with multiple models."""
+        argv = [
+            "--model-spec", "key=gpt5,alias=gpt-5,upstream=gpt-5,reasoning=high",
+            "--model-spec", "key=deepseek,alias=deepseek-v3.2,upstream=deepseek-v3.2,reasoning=none",
+        ]
+
+        with patch.dict(os.environ, {}, clear=True):
+            args = parse_args(argv)
+
+        assert len(args.model_specs) == 2
+        gpt5_spec = next(s for s in args.model_specs if s.key == "gpt5")
+        deepseek_spec = next(s for s in args.model_specs if s.key == "deepseek")
+
+        assert gpt5_spec.alias == "gpt-5"
+        assert gpt5_spec.reasoning_effort == "high"
+        assert deepseek_spec.alias == "deepseek-v3.2"
+        assert deepseek_spec.reasoning_effort == "none"
+
+    def test_parse_args_model_spec_invalid_format(self):
+        """Test that invalid model spec format raises error."""
+        argv = ["--model-spec", "invalid-format"]
+
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(SystemExit) as exc_info:
+                parse_args(argv)
+
+        assert exc_info.value.code != 0  # argparse should exit with error code
+
+    def test_parse_args_model_spec_missing_fields(self):
+        """Test that model spec with missing fields raises error."""
+        argv = ["--model-spec", "key=test,alias=test-model"]  # missing upstream
+
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(SystemExit) as exc_info:
+                parse_args(argv)
+
+        assert exc_info.value.code != 0
+
+    def test_parse_args_model_spec_with_other_args(self):
+        """Test --model-spec combined with other arguments."""
+        argv = [
+            "--model-spec", "key=test,alias=test-model,upstream=gpt-5",
+            "--port", "8080",
+            "--no-drop-params",
+            "--master-key", "sk-custom",
+        ]
+
+        with patch.dict(os.environ, {}, clear=True):
+            args = parse_args(argv)
+
+        assert len(args.model_specs) == 1
+        assert args.port == 8080
+        assert args.drop_params is False
+        assert args.master_key == "sk-custom"

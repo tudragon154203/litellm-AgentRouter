@@ -89,6 +89,8 @@ def attach_signal_handlers() -> None:
 
 def validate_prereqs() -> None:
     """Validate that required dependencies are available."""
+    if env_bool("SKIP_PREREQ_CHECK", False):
+        return
     try:
         import litellm  # noqa: F401
         import litellm.proxy.proxy_cli  # noqa: F401

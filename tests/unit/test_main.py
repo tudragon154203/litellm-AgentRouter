@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys  # noqa: F401  # Used in patch("sys.exit")
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,10 +36,13 @@ class TestMain:
     ):
         """Test main function with generated config."""
         # Setup mocks
-        mock_args = MagicMock()
-        mock_args.host = "127.0.0.1"
-        mock_args.port = 8080
-        mock_args.alias = "test-model"
+        mock_args = SimpleNamespace(
+            host="127.0.0.1",
+            port=8080,
+            alias="test-model",
+            model_specs=[SimpleNamespace(alias="test-model", upstream_model="gpt-5")],
+            config=None,
+        )
         mock_parse_args.return_value = mock_args
 
         mock_config_text = "generated: config"
@@ -64,10 +68,7 @@ class TestMain:
 
         # Verify output message
         captured = capsys.readouterr()
-        expected_msg = (
-            "Starting LiteLLM proxy on 127.0.0.1:8080 "
-            "with generated config (alias=test-model)."
-        )
+        expected_msg = "Starting LiteLLM proxy on 127.0.0.1:8080 with 1 model(s): test-model (gpt-5)"
         assert expected_msg in captured.out
 
     @patch("src.main.start_proxy")
@@ -90,10 +91,13 @@ class TestMain:
     ):
         """Test main function with existing config file."""
         # Setup mocks
-        mock_args = MagicMock()
-        mock_args.host = "0.0.0.0"
-        mock_args.port = 4000
-        mock_args.alias = "local-gpt"
+        mock_args = SimpleNamespace(
+            host="0.0.0.0",
+            port=4000,
+            alias="local-gpt",
+            config=Path("/existing/config.yaml"),
+            model_specs=[],
+        )
         mock_parse_args.return_value = mock_args
 
         mock_config_path = Path("/existing/config.yaml")
@@ -120,7 +124,7 @@ class TestMain:
         captured = capsys.readouterr()
         expected_msg = (
             "Starting LiteLLM proxy on 0.0.0.0:4000 "
-            f"using config file {mock_config_path}."
+            f"using config file {mock_config_path}"
         )
         assert expected_msg in captured.out
 
@@ -142,10 +146,13 @@ class TestMain:
         mock_start_proxy,
     ):
         """Test main function with None argv (should use sys.argv)."""
-        mock_args = MagicMock()
-        mock_args.host = "localhost"
-        mock_args.port = 3000
-        mock_args.alias = "none-argv-model"
+        mock_args = SimpleNamespace(
+            host="localhost",
+            port=3000,
+            alias="none-argv-model",
+            model_specs=[],
+            config=None,
+        )
         mock_parse_args.return_value = mock_args
 
         mock_config_text = "config: text"
@@ -180,6 +187,7 @@ class TestMain:
         """Test that main executes functions in the correct order."""
         # Setup mocks
         mock_args = MagicMock()
+        mock_args.model_specs = []
         mock_parse_args.return_value = mock_args
         mock_prepare_config.return_value = ("config", True)
         mock_create_temp.return_value.__enter__.return_value = Path("/tmp/config")
@@ -230,7 +238,7 @@ class TestMain:
         mock_start_proxy,
     ):
         """Test main propagates exceptions from start_proxy."""
-        mock_args = MagicMock()
+        mock_args = SimpleNamespace(host="localhost", port=4000, model_specs=[], config=None)
         mock_parse_args.return_value = mock_args
         mock_prepare_config.return_value = ("config", True)
         mock_create_temp.return_value.__enter__.return_value = Path("/tmp/config")

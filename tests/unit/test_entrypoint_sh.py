@@ -62,9 +62,11 @@ def test_generates_config_with_reasoning_effort(tmp_path: Path):
     env = os.environ.copy()
     env.update(
         {
+            "PROXY_MODEL_KEYS": "gpt5",
+            "MODEL_GPT5_ALIAS": "gpt-5",
+            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
+            "MODEL_GPT5_REASONING_EFFORT": "high",
             "OPENAI_API_KEY": "sk-test-123",
-            "REASONING_EFFORT": "high",
-            # Use defaults for the rest (alias/model/base/host/port)
         }
     )
 
@@ -73,7 +75,7 @@ def test_generates_config_with_reasoning_effort(tmp_path: Path):
 
     cfg = (app_dir / "generated-config.yaml").read_text()
     assert 'reasoning_effort: "high"' in cfg
-    assert 'api_key: "sk-test-123"' in cfg
+    assert 'api_key: "os.environ/OPENAI_API_KEY"' in cfg
 
     # API key should be masked in printed output
     assert "***MASKED***" in out
@@ -92,7 +94,15 @@ def test_omits_reasoning_effort_when_none(tmp_path: Path):
     script = _make_patched_entrypoint(tmp_path, app_dir)
 
     env = os.environ.copy()
-    env.update({"OPENAI_API_KEY": "sk-test-xyz", "REASONING_EFFORT": "none"})
+    env.update(
+        {
+            "PROXY_MODEL_KEYS": "gpt5",
+            "MODEL_GPT5_ALIAS": "gpt-5",
+            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
+            "MODEL_GPT5_REASONING_EFFORT": "none",
+            "OPENAI_API_KEY": "sk-test-xyz",
+        }
+    )
 
     code, out, err = _run_script(script, env)
     assert code == 0, f"script failed: {out}\n{err}"
@@ -109,6 +119,9 @@ def test_env_overrides_host_port_and_master_key(tmp_path: Path):
     env = os.environ.copy()
     env.update(
         {
+            "PROXY_MODEL_KEYS": "primary",
+            "MODEL_PRIMARY_ALIAS": "gpt-5",
+            "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
             "OPENAI_API_KEY": "sk-test-abc",
             "LITELLM_HOST": "127.0.0.1",
             "PORT": "8088",

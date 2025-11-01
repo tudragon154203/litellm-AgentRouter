@@ -2,13 +2,14 @@
 """Real integration tests that make actual GPT-5 API calls."""
 
 from __future__ import annotations
+from src.utils import load_dotenv_files
 
 import os
 import sys
 
 import pytest
 
-from src.utils import load_dotenv_files
+litellm = pytest.importorskip("litellm")
 
 
 class TestRealGPT5API:
@@ -25,13 +26,10 @@ class TestRealGPT5API:
             pytest.skip("OPENAI_API_KEY environment variable not set")
 
         # Set drop_params to handle unsupported parameters for GPT-5
-        import litellm
         litellm.drop_params = True
 
     def _call_gpt5_api_not_stream(self, **kwargs):
         """Helper method to call GPT-5 API (non-streaming only)."""
-        import litellm
-
         # Ensure streaming is disabled for this method
         if 'stream' in kwargs:
             del kwargs['stream']
@@ -53,8 +51,6 @@ class TestRealGPT5API:
 
     def _call_gpt5_api_streaming(self, **kwargs):
         """Helper method to call GPT-5 API with streaming."""
-        import litellm
-
         # Use the same format as the working demo
         default_params = {
             'model': 'openai/gpt-5',

@@ -14,6 +14,26 @@ from .proxy import start_proxy
 from .utils import attach_signal_handlers, load_dotenv_files, validate_prereqs
 
 
+def get_startup_message(args) -> str:
+    """Generate startup message with model information."""
+    host_port = f"{args.host}:{args.port}"
+    model_specs = getattr(args, "model_specs", None) or []
+
+    if args.config:
+        # Using config file
+        return f"Starting LiteLLM proxy on {host_port} using config file {args.config}"
+
+    if model_specs:
+        alias_info = ", ".join(f"{spec.alias} ({spec.upstream_model})" for spec in model_specs)
+        return f"Starting LiteLLM proxy on {host_port} with {len(model_specs)} model(s): {alias_info}"
+
+    # Should not happen: prepare_config enforces presence of model specs.
+    return (
+        f"Starting LiteLLM proxy on {host_port} with generated config "
+        "(no model specifications found)"
+    )
+
+
 def main(argv: list[str] | None = None) -> NoReturn:
     """Main entry point for the LiteLLM proxy launcher."""
     load_dotenv_files()
@@ -24,16 +44,7 @@ def main(argv: list[str] | None = None) -> NoReturn:
     config_data, is_generated = prepare_config(args)
 
     with create_temp_config_if_needed(config_data, is_generated) as config_path:
-        if is_generated:
-            print(
-                f"Starting LiteLLM proxy on {args.host}:{args.port} "
-                f"with generated config (alias={args.alias})."
-            )
-        else:
-            print(
-                f"Starting LiteLLM proxy on {args.host}:{args.port} "
-                f"using config file {config_path}."
-            )
+        print(get_startup_message(args))
         start_proxy(args, config_path)
 
     # This should never be reached, but included for completeness

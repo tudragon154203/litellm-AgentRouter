@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from src.main import main
@@ -21,7 +22,11 @@ class TestMainGuard:
 
         try:
             mock_args = type('Args', (), {
-                'host': 'localhost', 'port': 4000, 'alias': 'test-model'
+                'host': 'localhost',
+                'port': 4000,
+                'alias': 'test-model',
+                'config': None,
+                'model_specs': [SimpleNamespace(alias='test-model', upstream_model='gpt-5')],
             })()
 
             with patch("src.main.parse_args", return_value=mock_args), \
