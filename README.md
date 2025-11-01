@@ -1,6 +1,6 @@
-# LiteLLM Local Gateway - AgentRouter GPT-5
+# LiteLLM Local Gateway - Multi-Model Support
 
-A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint. The proxy is useful when other local services expect the OpenAI client interface but you want to fan traffic out to any provider supported by LiteLLM.
+A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint for multiple models including GPT-5 and DeepSeek v3.2. The proxy is useful when other local services expect the OpenAI client interface but you want to fan traffic out to any provider supported by LiteLLM.
 
 ## Project Structure
 
@@ -41,6 +41,132 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint.
    ```
 
 The server will start on `http://localhost:4000` with live code reloading for development (via bind mount of ./src into the container).
+
+## Multi-Model Configuration
+
+The proxy supports running multiple models concurrently from a single instance. You can expose both GPT-5 and DeepSeek v3.2 (and additional models) simultaneously, allowing downstream clients to target either alias without restarting the service.
+
+### Environment-Based Configuration (Recommended)
+
+Configure multiple models using the new `PROXY_MODEL_KEYS` schema:
+
+```bash
+# Copy and configure environment
+cp .env.example .env
+
+# Edit .env with multi-model setup:
+PROXY_MODEL_KEYS=gpt5,deepseek
+
+# GPT-5 model configuration
+MODEL_GPT5_ALIAS=gpt-5
+MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+MODEL_GPT5_REASONING_EFFORT=medium
+
+# DeepSeek v3.2 model configuration
+MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
+MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
+MODEL_DEEPSEEK_REASONING_EFFORT=medium
+
+# Global defaults (used when per-model values omitted)
+OPENAI_API_BASE=https://agentrouter.org/v1
+OPENAI_API_KEY=sk-your-upstream-api-key
+LITELLM_MASTER_KEY=sk-local-master
+```
+
+Start the proxy:
+
+```bash
+docker-compose up --build
+```
+
+Both models will be available:
+- **GPT-5**: `http://localhost:4000` with model `"gpt-5"`
+- **DeepSeek v3.2**: `http://localhost:4000` with model `"deepseek-v3.2"`
+
+### CLI-Based Configuration
+
+Alternatively, use `--model-spec` flags for quick multi-model setup:
+
+```bash
+python -m src.main \
+  --model-spec "key=gpt5,alias=gpt-5,upstream=gpt-5,reasoning=medium" \
+  --model-spec "key=deepseek,alias=deepseek-v3.2,upstream=deepseek-v3.2,reasoning=none"
+```
+
+### Single Model Configuration
+
+For single-model deployments, use the new schema with one entry:
+
+```bash
+# Environment configuration
+PROXY_MODEL_KEYS=primary
+MODEL_PRIMARY_ALIAS=gpt-5
+MODEL_PRIMARY_UPSTREAM_MODEL=gpt-5
+MODEL_PRIMARY_REASONING_EFFORT=high
+```
+
+### Model-Specific Configuration
+
+#### DeepSeek v3.2
+
+DeepSeek v3.2 is fully supported with AgentRouter upstream:
+
+```bash
+# DeepSeek-only configuration
+PROXY_MODEL_KEYS=deepseek
+MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
+MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
+MODEL_DEEPSEEK_REASONING_EFFORT=medium
+```
+
+**Recommended Settings for DeepSeek v3.2:**
+- **Reasoning Effort**: `medium` (balanced performance)
+- **Drop Params**: `true` (default, filters unsupported parameters)
+- **Streaming**: `true` (default, enables real-time responses)
+
+#### GPT-5
+
+GPT-5 configuration supports the full range of reasoning controls:
+
+```bash
+# GPT-5 with high reasoning
+PROXY_MODEL_KEYS=gpt5
+MODEL_GPT5_ALIAS=gpt-5
+MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+MODEL_GPT5_REASONING_EFFORT=high
+```
+
+**Recommended Settings for GPT-5:**
+- **Reasoning Effort**: `high` (maximum quality for complex tasks)
+- **Drop Params**: `true` (default)
+- **Streaming**: `true` (default)
+
+### Migration Notes
+
+The proxy has transitioned from single-model environment variables to a multi-model schema:
+
+**Legacy Variables (Retired):**
+- `LITELLM_MODEL_ALIAS` → Use `PROXY_MODEL_KEYS` + `MODEL_<KEY>_ALIAS`
+- `OPENAI_MODEL` → Use `MODEL_<KEY>_UPSTREAM_MODEL`
+- `LITELLM_HOST` → Now hardcoded to `0.0.0.0`
+- `LITELLM_WORKERS` → Now hardcoded to `1`
+- `LITELLM_DEBUG` → Use `--debug` flag
+- `LITELLM_DROP_PARAMS` → Use `--drop-params`/`--no-drop-params`
+
+**New Required Schema:**
+Even for single-model deployments, use `PROXY_MODEL_KEYS` with at least one entry.
+
+**Example Migration:**
+```bash
+# Old way (retired)
+LITELLM_MODEL_ALIAS=gpt-5
+OPENAI_MODEL=gpt-5
+
+# New way (required)
+PROXY_MODEL_KEYS=primary
+MODEL_PRIMARY_ALIAS=gpt-5
+MODEL_PRIMARY_UPSTREAM_MODEL=gpt-5
+```
 
 ## License
 
@@ -85,6 +211,35 @@ Configurable settings via environment variables:
 - CLI `--model` default is `gpt-5`
 - Note: `set_verbose` in the generated config mirrors the streaming flag (true when streaming is enabled)
 
+### CLI Configuration
+
+Use `--model-spec` for command-line multi-model configuration:
+
+```bash
+# Multiple models
+python -m src.main \
+  --model-spec "key=gpt5,alias=gpt-5,upstream=gpt-5,reasoning=high" \
+  --model-spec "key=deepseek,alias=deepseek-v3.2,upstream=deepseek-v3.2"
+
+# Single model with custom base URL
+python -m src.main \
+  --model-spec "key=primary,alias=my-model,upstream=gpt-5,base=https://api.custom.com"
+
+# With global settings
+python -m src.main \
+  --model-spec "key=test,alias=test-model,upstream=gpt-5" \
+  --upstream-base "https://agentrouter.org/v1" \
+  --master-key "sk-custom-master" \
+  --no-drop-params
+```
+
+### Legacy Configuration
+
+The following single-model variables are **retired**:
+- `LITELLM_MODEL_ALIAS`, `OPENAI_MODEL`, `LITELLM_HOST`, `LITELLM_WORKERS`, `LITELLM_DEBUG`, `LITELLM_DROP_PARAMS`
+
+Use the new multi-model schema even for single-model deployments.
+
 ### Using Custom Configuration
 
 You can provide your own LiteLLM configuration file:
@@ -107,7 +262,7 @@ python -m src.main --print-config
 
 ## Reasoning Effort Configuration
 
-The proxy supports controlling reasoning capabilities for models that benefit from adjustable reasoning effort (like AgentRouter's GPT-5). This feature allows you to balance response quality against computational cost.
+The proxy supports controlling reasoning capabilities for models that benefit from adjustable reasoning effort (like AgentRouter's GPT-5 and DeepSeek v3.2). This feature allows you to balance response quality against computational cost.
 
 ### Supported Reasoning Levels
 
@@ -223,6 +378,43 @@ The `docker-compose.yml` is configured for development with:
 - **Port mapping**: Exposes port 4000
 - **Generated configuration**: Entrypoint writes `/app/generated-config.yaml` from environment variables
 
+### Docker Compose (Multi-Model)
+
+For multi-model deployments, update `docker-compose.yml` or use environment overrides:
+
+```yaml
+services:
+  litellm-proxy:
+    environment:
+      - PROXY_MODEL_KEYS=gpt5,deepseek
+      - MODEL_GPT5_ALIAS=gpt-5
+      - MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+      - MODEL_GPT5_REASONING_EFFORT=medium
+      - MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
+      - MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
+      - MODEL_DEEPSEEK_REASONING_EFFORT=medium
+      - OPENAI_API_BASE=https://agentrouter.org/v1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-local-master}
+```
+
+Or use environment file:
+
+```bash
+# Create multi-model .env
+cat > .env << EOF
+PROXY_MODEL_KEYS=gpt5,deepseek
+MODEL_GPT5_ALIAS=gpt-5
+MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
+MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
+OPENAI_API_KEY=sk-your-upstream-key
+EOF
+
+# Start with multi-model config
+docker-compose up --build
+```
+
 ### Docker Standalone
 
 ```bash
@@ -296,6 +488,7 @@ response = client.chat.completions.create(
 - **LangChain**: Use the same base URL and API key
 - **LiteLLM**: Point to the local endpoint
 - **Any OpenAI-compatible client**: Configure with the above settings
+
 
 ## Development
 

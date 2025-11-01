@@ -19,7 +19,7 @@ add_model() {
     cat >> /app/generated-config.yaml << EOF
   - model_name: "${alias}"
     litellm_params:
-      model: "${upstream_model}"
+      model: "openai/${upstream_model}"
       api_base: "${OPENAI_BASE_URL:-https://agentrouter.org/v1}"
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
