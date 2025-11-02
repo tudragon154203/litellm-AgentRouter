@@ -30,11 +30,10 @@ def create_alias_lookup(model_specs: List[ModelSpec]) -> Dict[str, str]:
         model_specs: List of ModelSpec configurations
 
     Returns:
-        Dictionary mapping alias names to upstream model names (with openai/ prefix)
+        Dictionary mapping alias names to upstream model names (normalized with openai/ prefix)
     """
     lookup = {}
     for spec in model_specs:
-        # Ensure upstream_model has openai/ prefix
         upstream_model = spec.upstream_model
         if not upstream_model.startswith("openai/"):
             upstream_model = f"openai/{upstream_model}"
@@ -113,6 +112,8 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
             # Extract status code from exception if available
             status_code = getattr(exc, 'status_code', 500)
 
+            raw_error_message = str(exc) or getattr(exc, "detail", "")
+
             telemetry_data = {
                 "event": "chat_completion",
                 "timestamp": datetime.now(GMT7_TZ).isoformat(),
@@ -130,7 +131,7 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
                 "reasoning_tokens": None,
                 "total_tokens": None,
                 "error_type": type(exc).__name__,
-                "error_message": self._sanitize_error_message(str(exc)),
+                "error_message": self._sanitize_error_message(raw_error_message),
                 "parse_error": False,
                 "client_request_id": client_request_id,
             }

@@ -58,7 +58,7 @@ class TestTelemetryMiddlewareCoverage:
         mock_error_response.status_code = 400
         mock_call_next = AsyncMock(return_value=mock_error_response)
 
-        response = await telemetry_middleware.dispatch(mock_request, mock_call_next)
+        await telemetry_middleware.dispatch(mock_request, mock_call_next)
 
         # Should handle the error and continue
         mock_call_next.assert_called_once_with(mock_request)
@@ -87,7 +87,7 @@ class TestTelemetryMiddlewareCoverage:
         mock_logger = MagicMock()
 
         with patch.object(telemetry_middleware, '_log_telemetry', mock_logger):
-            response = await telemetry_middleware.dispatch(mock_request, mock_call_next)
+            await telemetry_middleware.dispatch(mock_request, mock_call_next)
 
             # Should have been called to log telemetry
             mock_logger.assert_called_once()
@@ -114,8 +114,6 @@ class TestTelemetryMiddlewareCoverage:
             "usage": {"prompt_tokens": 10, "completion_tokens": 20}
         }).encode()
         mock_response.status_code = 200
-
-        mock_call_next = AsyncMock(return_value=mock_response)
 
         # Verify that forwarded IP is used
         remote_addr = telemetry_middleware._get_remote_addr(mock_request)

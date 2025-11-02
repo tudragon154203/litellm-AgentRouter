@@ -13,7 +13,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from .utils import quote, temporary_config
+try:
+    from .utils import quote, temporary_config
+except ImportError:
+    # Fallback for when running as module
+    from utils import quote, temporary_config
+
+
+def derive_alias(upstream_model: str) -> str:
+    """Derive public alias from upstream model identifier.
+
+    Args:
+        upstream_model: The upstream model identifier (e.g., 'openai/gpt-5', 'deepseek-v3.2')
+
+    Returns:
+        Derived alias string (e.g., 'gpt-5', 'deepseek-v3.2')
+    """
+    # Strip known provider prefixes
+    known_prefixes = ['openai/', 'anthropic/', 'google/', 'azure/']
+
+    for prefix in known_prefixes:
+        if upstream_model.startswith(prefix):
+            return upstream_model[len(prefix):]
+
+    # Return upstream model unchanged when no known prefix exists
+    return upstream_model
 
 
 @dataclass
@@ -30,8 +54,9 @@ class ModelSpec:
         """Validate the model spec after creation."""
         if not self.key:
             raise ValueError("Model key cannot be empty")
+        # Auto-derive alias if not provided
         if not self.alias:
-            raise ValueError("Model alias cannot be empty")
+            self.alias = derive_alias(self.upstream_model)
         if not self.upstream_model:
             raise ValueError("Upstream model cannot be empty")
 
@@ -52,7 +77,7 @@ def get_model_capabilities(upstream_model: str) -> Dict[str, Any]:
 def parse_model_spec(spec_str: str) -> ModelSpec:
     """Parse a model specification string into a ModelSpec object.
 
-    Format: key=xxx,alias=xxx,upstream=xxx[,base=xxx][,key_env=xxx][,reasoning=xxx]
+    Format: key=xxx,upstream=xxx[,alias=xxx][,base=xxx][,key_env=xxx][,reasoning=xxx]
     """
     parts = {}
     for part in spec_str.split(','):
@@ -61,14 +86,17 @@ def parse_model_spec(spec_str: str) -> ModelSpec:
         key, value = part.split('=', 1)
         parts[key.strip()] = value.strip()
 
-    required_fields = ['key', 'alias', 'upstream']
+    required_fields = ['key', 'upstream']
     missing = [field for field in required_fields if field not in parts]
     if missing:
         raise ValueError(f"Missing required fields in model spec: {missing}")
 
+    # Alias is optional - derive from upstream if not provided
+    alias = parts.get('alias')
+
     return ModelSpec(
         key=parts['key'],
-        alias=parts['alias'],
+        alias=alias,
         upstream_model=parts['upstream'],
         upstream_base=parts.get('base'),
         upstream_key_env=parts.get('key_env'),
@@ -95,21 +123,28 @@ def load_model_specs_from_env() -> List[ModelSpec]:
     for key in keys:
         prefix = f"MODEL_{key.upper()}_"
 
-        alias = os.getenv(f"{prefix}ALIAS")
+        # Check for legacy alias variables and fail fast
+        alias_env_var = f"{prefix}ALIAS"
+        if os.getenv(alias_env_var):
+            raise ValueError(
+                f"Legacy environment variable '{alias_env_var}' detected. "
+                f"Please remove it and use only MODEL_{key.upper()}_UPSTREAM_MODEL. "
+                f"The alias will be automatically derived from the upstream model name."
+            )
+
         upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
         upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
         upstream_key_env = os.getenv(f"{prefix}UPSTREAM_KEY_ENV") or global_key_env
         reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
 
-        if not alias:
-            raise ValueError(f"Missing environment variable: {prefix}ALIAS")
         if not upstream_model:
             raise ValueError(f"Missing environment variable: {prefix}UPSTREAM_MODEL")
 
+        # Create ModelSpec with alias=None (will be auto-derived)
         model_specs.append(
             ModelSpec(
                 key=key,
-                alias=alias,
+                alias=None,  # Will be auto-derived in __post_init__
                 upstream_model=upstream_model,
                 upstream_base=upstream_base,
                 upstream_key_env=upstream_key_env,
@@ -144,6 +179,10 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
         "    litellm_params:",
         f"      model: {quote(upstream_model)}",
         f"      api_base: {quote(upstream_base)}",
+        f"      custom_llm_provider: {quote('openai')}",
+        "      headers:",
+        f"        \"User-Agent\": {quote('QwenCode/0.0.14 (win32; unknown)')}",
+        f"        \"Content-Type\": {quote('application/json')}",
     ]
 
     if upstream_key_env:
@@ -195,7 +234,7 @@ def render_config(
     lines.append("")
     lines.append("litellm_settings:")
     lines.append(f"  drop_params: {'true' if drop_params else 'false'}")
-    lines.append(f"  set_verbose: {'true' if streaming else 'false'}")
+    lines.append("  set_verbose: false")
 
     if master_key:
         lines.append("")

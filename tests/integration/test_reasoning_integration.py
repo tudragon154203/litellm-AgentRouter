@@ -30,10 +30,8 @@ class TestReasoningEffortEndToEnd:
     def test_env_driven_reasoning(self, monkeypatch):
         """Environment configuration should include reasoning for GPT-5 only."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
-        monkeypatch.setenv("MODEL_GPT5_ALIAS", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_REASONING_EFFORT", "high")
-        monkeypatch.setenv("MODEL_DEEPSEEK_ALIAS", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_REASONING_EFFORT", "low")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
@@ -62,7 +60,6 @@ class TestReasoningEffortEndToEnd:
     def test_env_reasoning_none_omits_value(self, monkeypatch):
         """Setting reasoning to 'none' should omit the parameter."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "deepseek")
-        monkeypatch.setenv("MODEL_DEEPSEEK_ALIAS", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_REASONING_EFFORT", "none")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
@@ -114,7 +111,6 @@ class TestReasoningEffortEndToEnd:
     def test_missing_reasoning_defaults_to_none(self, monkeypatch):
         """Omitting reasoning should leave the field absent."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "primary")
-        monkeypatch.setenv("MODEL_PRIMARY_ALIAS", "primary")
         monkeypatch.setenv("MODEL_PRIMARY_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("SKIP_PREREQ_CHECK", "1")

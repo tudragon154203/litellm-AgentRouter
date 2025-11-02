@@ -117,7 +117,15 @@ class TestRealGLMAPI:
     def test_glm_reasoning_task(self):
         """Test GLM on a reasoning task."""
         resp = self._call_glm_not_stream(
-            messages=[{"role": "user", "content": "If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly? Explain your reasoning."}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "If all roses are flowers and some flowers fade quickly, can we "
+                        "conclude that some roses fade quickly? Explain your reasoning."
+                    ),
+                }
+            ],
             max_tokens=200,
             temperature=0.3,
         )

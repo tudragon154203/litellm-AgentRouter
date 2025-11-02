@@ -14,10 +14,8 @@ class TestMultiModelIntegration:
         """Test --print-config with dual-model environment configuration."""
         env_vars = {
             "PROXY_MODEL_KEYS": "gpt5,deepseek",
-            "MODEL_GPT5_ALIAS": "gpt-5",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_GPT5_REASONING_EFFORT": "medium",
-            "MODEL_DEEPSEEK_ALIAS": "deepseek-v3.2",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
             "MODEL_DEEPSEEK_REASONING_EFFORT": "low",
             "OPENAI_API_BASE": "https://agentrouter.org/v1",
@@ -53,14 +51,13 @@ class TestMultiModelIntegration:
 
         # Check global settings
         assert "drop_params: true" in config_text
-        assert "set_verbose: true" in config_text
+        assert "set_verbose: false" in config_text
         assert 'master_key: "sk-master-test"' in config_text
 
     def test_print_config_single_model_env(self):
         """Test --print-config with single model environment configuration."""
         env_vars = {
             "PROXY_MODEL_KEYS": "primary",
-            "MODEL_PRIMARY_ALIAS": "primary-model",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
             "MODEL_PRIMARY_REASONING_EFFORT": "high",
             "OPENAI_API_BASE": "https://custom.api.com",
@@ -81,7 +78,7 @@ class TestMultiModelIntegration:
         assert result.returncode == 0
         config_text = result.stdout
 
-        assert 'model_name: "primary-model"' in config_text
+        assert 'model_name: "gpt-5"' in config_text
         assert 'model: "openai/gpt-5"' in config_text
         assert 'reasoning_effort: "high"' in config_text
         assert 'api_base: "https://custom.api.com"' in config_text
@@ -131,9 +128,7 @@ class TestMultiModelIntegration:
         """Test startup message displays all configured models."""
         env_vars = {
             "PROXY_MODEL_KEYS": "gpt5,deepseek",
-            "MODEL_GPT5_ALIAS": "gpt-5",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
-            "MODEL_DEEPSEEK_ALIAS": "deepseek-v3.2",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
         }
 
@@ -168,7 +163,6 @@ print(get_startup_message(args))
         """Test startup message for single model."""
         env_vars = {
             "PROXY_MODEL_KEYS": "primary",
-            "MODEL_PRIMARY_ALIAS": "primary-model",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
         }
 
@@ -196,7 +190,7 @@ print(get_startup_message(args))
         startup_msg = result.stdout.strip()
 
         assert "with 1 model(s):" in startup_msg
-        assert "primary-model (gpt-5)" in startup_msg
+        assert "gpt-5 (gpt-5)" in startup_msg
 
     def test_legacy_single_model_requires_new_schema(self):
         """Legacy single-model flags without model specs should fail."""
@@ -238,7 +232,6 @@ print(get_startup_message(args))
         # Add test-specific environment variables
         env_vars = {
             "PROXY_MODEL_KEYS": "gpt5",
-            "MODEL_GPT5_ALIAS": "gpt-5",
             # Missing MODEL_GPT5_UPSTREAM_MODEL intentionally
             "SKIP_PREREQ_CHECK": "1",
             "SKIP_DOTENV": "1"
@@ -263,9 +256,7 @@ print(get_startup_message(args))
         """Test that generated YAML has correct ordering for snapshot testing."""
         env_vars = {
             "PROXY_MODEL_KEYS": "gpt5,deepseek",
-            "MODEL_GPT5_ALIAS": "gpt-5",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
-            "MODEL_DEEPSEEK_ALIAS": "deepseek-v3.2",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
             "OPENAI_API_BASE": "https://agentrouter.org/v1",
             "OPENAI_API_KEY": "sk-test",

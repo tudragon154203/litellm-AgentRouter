@@ -25,9 +25,9 @@
 - **Doc consumer**: wants a concise recipe to run DeepSeek via docker-compose or local CLI.
 
 ## Functional Requirements
-1. CLI accepts multiple `--model-spec` inputs (e.g., `--model-spec alias=gpt-5,upstream=gpt-5` and `--model-spec alias=deepseek-v3.2,upstream=deepseek-v3.2`) and/or honors a new `.env` driven list so the generated config contains two `model_list` entries.
-2. Environment configuration supports declaring at least two models concurrently via indexed keys (e.g., `PROXY_MODEL_KEYS=gpt5,deepseek` paired with `MODEL_GPT5_ALIAS`, `MODEL_GPT5_UPSTREAM_MODEL`, etc.).
-3. When `--alias` is not provided, defaults remain `gpt-5`; however docs must clarify recommended alias (e.g., `deepseek-v3.2`) and how default alias interacts with multi-model configs.
+1. CLI accepts multiple `--model-spec` inputs (e.g., `--model-spec upstream=gpt-5` and `--model-spec upstream=deepseek-v3.2`) and/or honors a new `.env` driven list so the generated config contains two `model_list` entries.
+2. Environment configuration supports declaring at least two models concurrently via indexed keys (e.g., `PROXY_MODEL_KEYS=gpt5,deepseek` paired with `MODEL_GPT5_UPSTREAM_MODEL`, `MODEL_DEEPSEEK_UPSTREAM_MODEL`, etc.), deriving aliases from the upstream identifiers automatically.
+3. When `--alias` is not provided, defaults remain the upstream identifier (e.g., `gpt-5`); docs should clarify recommended naming (e.g., `deepseek-v3.2`) and how default alias interacts with multi-model configs.
 4. Generated config must reflect per-model `reasoning_effort` settings, treating the value `none` as an instruction to omit the field.
 5. Default `drop_params` remains enabled globally (hard-coded true); no per-model override required.
 6. Proxy startup logs clearly display all configured aliases and upstream models.
@@ -51,7 +51,7 @@
 - Update `main` startup log to include the list of configured aliases and their upstream targets for clarity.
 
 #### Environment Variable Redesign
-- Introduce `PROXY_MODEL_KEYS` (comma-separated identifiers) to declare active models; each identifier maps to namespaced variables (`MODEL_<KEY>_ALIAS`, `MODEL_<KEY>_UPSTREAM_MODEL`, optional `MODEL_<KEY>_REASONING_EFFORT`).
+- Introduce `PROXY_MODEL_KEYS` (comma-separated identifiers) to declare active models; each identifier maps to namespaced variables (`MODEL_<KEY>_UPSTREAM_MODEL`, optional `MODEL_<KEY>_REASONING_EFFORT`), with aliases derived automatically.
 - Support `OPENAI_API_BASE` and `OPENAI_API_KEY` global fallbacks when per-model values are omitted.
 - Drop legacy single-model environment variables; require multi-model schema even for one-model deployments (with docs highlighting minimal single-entry example).
 

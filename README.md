@@ -59,14 +59,16 @@ cp .env.example .env
 PROXY_MODEL_KEYS=gpt5,deepseek
 
 # GPT-5 model configuration
-MODEL_GPT5_ALIAS=gpt-5
-MODEL_GPT5_UPSTREAM_MODEL=gpt-5
-MODEL_GPT5_REASONING_EFFORT=medium
-
+# Example: Dual-model setup with auto-derived aliases
+# PROXY_MODEL_KEYS=gpt5,deepseek
+#
+# GPT-5 model configuration (supports reasoning effort)
+# MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+# MODEL_GPT5_REASONING_EFFORT=medium
+#
 # DeepSeek v3.2 model configuration
-MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
-MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
-MODEL_DEEPSEEK_REASONING_EFFORT=medium
+# MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
+# MODEL_DEEPSEEK_REASONING_EFFORT=medium
 
 # Global defaults (used when per-model values omitted)
 OPENAI_API_BASE=https://agentrouter.org/v1
@@ -101,10 +103,11 @@ For single-model deployments, use the new schema with one entry:
 ```bash
 # Environment configuration
 PROXY_MODEL_KEYS=primary
-MODEL_PRIMARY_ALIAS=gpt-5
 MODEL_PRIMARY_UPSTREAM_MODEL=gpt-5
 MODEL_PRIMARY_REASONING_EFFORT=high
 ```
+
+The proxy will expose the model using the upstream identifier (`gpt-5` in this example); no separate alias variable is required.
 
 ### Model-Specific Configuration
 
@@ -115,10 +118,11 @@ DeepSeek v3.2 is fully supported with AgentRouter upstream:
 ```bash
 # DeepSeek-only configuration
 PROXY_MODEL_KEYS=deepseek
-MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
 MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
 MODEL_DEEPSEEK_REASONING_EFFORT=medium
 ```
+
+Alias `deepseek-v3.2` is derived automatically from the upstream model string.
 
 **Recommended Settings for DeepSeek v3.2:**
 - **Reasoning Effort**: `medium` (balanced performance)
@@ -132,10 +136,11 @@ GPT-5 configuration supports the full range of reasoning controls:
 ```bash
 # GPT-5 with high reasoning
 PROXY_MODEL_KEYS=gpt5
-MODEL_GPT5_ALIAS=gpt-5
 MODEL_GPT5_UPSTREAM_MODEL=gpt-5
 MODEL_GPT5_REASONING_EFFORT=high
 ```
+
+Alias `gpt-5` is derived automatically from the upstream model string.
 
 **Recommended Settings for GPT-5:**
 - **Reasoning Effort**: `high` (maximum quality for complex tasks)
@@ -147,7 +152,12 @@ MODEL_GPT5_REASONING_EFFORT=high
 The proxy has transitioned from single-model environment variables to a multi-model schema:
 
 **Legacy Variables (Retired):**
-- `LITELLM_MODEL_ALIAS` → Use `PROXY_MODEL_KEYS` + `MODEL_<KEY>_ALIAS`
+- `LITELLM_MODEL_ALIAS` → Use `PROXY_MODEL_KEYS` + `MODEL_<KEY>_UPSTREAM_MODEL`
+
+**PRD 3 Implementation:**
+- **Single Source of Truth**: Now uses only `MODEL_<KEY>_UPSTREAM_MODEL` variables
+- **Automatic Alias Derivation**: Public aliases are auto-derived from upstream model names
+- **Legacy Variable Detection**: System fails fast if any `MODEL_<KEY>_ALIAS` variables are detected
 - `OPENAI_MODEL` → Use `MODEL_<KEY>_UPSTREAM_MODEL`
 - `LITELLM_HOST` → Now hardcoded to `0.0.0.0`
 - `LITELLM_WORKERS` → Now hardcoded to `1`
@@ -165,7 +175,6 @@ OPENAI_MODEL=gpt-5
 
 # New way (required)
 PROXY_MODEL_KEYS=primary
-MODEL_PRIMARY_ALIAS=gpt-5
 MODEL_PRIMARY_UPSTREAM_MODEL=gpt-5
 ```
 
@@ -357,7 +366,7 @@ services:
       - OPENAI_MODEL=gpt-5
       - OPENAI_BASE_URL=https://agentrouter.org/v1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    # Note: Model alias is hardcoded as "gpt-5"
+    # Note: Public alias is derived from the upstream model id
 ```
 
 ### Behavior and Compatibility
@@ -377,7 +386,7 @@ The `docker-compose.yml` is configured for development with:
 - **Live code reloading**: Changes to `src/` are reflected immediately
 - **Environment file support**: Uses `.env` for configuration
 - **Port mapping**: Exposes port 4000
-- **Generated configuration**: Entrypoint writes `/app/generated-config.yaml` from environment variables
+- **Runtime configuration**: The Python launcher generates configuration dynamically without writing to disk
 
 ### Docker Compose (Multi-Model)
 
@@ -388,10 +397,8 @@ services:
   litellm-proxy:
     environment:
       - PROXY_MODEL_KEYS=gpt5,deepseek
-      - MODEL_GPT5_ALIAS=gpt-5
       - MODEL_GPT5_UPSTREAM_MODEL=gpt-5
       - MODEL_GPT5_REASONING_EFFORT=medium
-      - MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
       - MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
       - MODEL_DEEPSEEK_REASONING_EFFORT=medium
       - OPENAI_API_BASE=https://agentrouter.org/v1
@@ -405,9 +412,7 @@ Or use environment file:
 # Create multi-model .env
 cat > .env << EOF
 PROXY_MODEL_KEYS=gpt5,deepseek
-MODEL_GPT5_ALIAS=gpt-5
 MODEL_GPT5_UPSTREAM_MODEL=gpt-5
-MODEL_DEEPSEEK_ALIAS=deepseek-v3.2
 MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
 OPENAI_API_KEY=sk-your-upstream-key
 EOF

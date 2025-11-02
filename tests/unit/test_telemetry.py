@@ -7,9 +7,7 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime, timezone
 from types import ModuleType, SimpleNamespace
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -187,7 +185,7 @@ class TestTelemetryMiddleware:
 
             # Execute middleware
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify log was emitted
         assert len(self.log_records) == 1
@@ -216,6 +214,66 @@ class TestTelemetryMiddleware:
         assert "model_alias" not in logged_data
         assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+
+    def test_parse_usage_fallback_sums_tokens(self):
+        """Fallback path should compute total tokens when missing."""
+        usage = self.middleware._parse_usage_from_response({
+            "usage": {"input_tokens": 4, "output_tokens": 6}
+        })
+        assert usage["prompt_tokens"] == 4
+        assert usage["completion_tokens"] == 6
+        assert usage["total_tokens"] == 10
+
+    def test_get_remote_addr_header_fallbacks(self):
+        """_get_remote_addr should prefer forwarded headers when client missing."""
+        request = self.create_mock_request(headers=[(b"x-forwarded-for", b"10.0.0.1")])
+        request.scope["client"] = None  # type: ignore[attr-defined]
+        assert self.middleware._get_remote_addr(request) == "10.0.0.1"
+
+        request = self.create_mock_request(headers=[(b"x-real-ip", b"172.16.0.5")])
+        request.scope["client"] = None  # type: ignore[attr-defined]
+        assert self.middleware._get_remote_addr(request) == "172.16.0.5"
+
+        request = self.create_mock_request(headers=[])
+        request.scope["client"] = None  # type: ignore[attr-defined]
+        assert self.middleware._get_remote_addr(request) == "unknown"
+
+    def test_non_post_request_passthrough(self):
+        """Requests to other endpoints should bypass telemetry."""
+        request = self.create_mock_request(method="GET", path="/v1/chat/completions")
+        response = self.create_mock_response(204, {})
+
+        async def mock_call_next(req):
+            return response
+
+        import asyncio
+        result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+
+        assert result is response
+        assert self.log_records == []
+
+    def test_dispatch_handles_json_parse_error(self):
+        """Middleware should tolerate JSON parsing failures."""
+        request = self.create_mock_request()
+
+        async def failing_json():
+            raise ValueError("bad json")
+
+        request.json = failing_json  # type: ignore[assignment]
+
+        response = self.create_mock_response(200, {"choices": []})
+
+        async def mock_call_next(req):
+            return response
+
+        import asyncio
+        result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+
+        assert result is response
+        assert len(self.log_records) == 1
+
+        logged_data = json.loads(self.log_records[0].getMessage())
+        assert logged_data["upstream_model"] == "openai/unknown"
 
     def test_non_streaming_success_missing_usage(self):
         """Test successful non-streaming request with missing usage data."""
@@ -246,7 +304,7 @@ class TestTelemetryMiddleware:
             mock_time.side_effect = [0.0, 0.100]
 
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify log was emitted with missing_usage flag
         assert len(self.log_records) == 1
@@ -281,7 +339,10 @@ class TestTelemetryMiddleware:
             yield b'data: {"choices": [{"delta": {"content": "Hi"}}}\n\n'
             yield b'data: {"choices": [{"delta": {"content": " there"}}\n\n'
             # Final chunk with usage
-            yield b'data: {"usage": {"prompt_tokens": 15, "completion_tokens": 25, "total_tokens": 40, "output_token_details": {"reasoning_tokens": 8}}}\n\n'
+            yield (
+                b'data: {"usage": {"prompt_tokens": 15, "completion_tokens": 25, '
+                b'"total_tokens": 40, "output_token_details": {"reasoning_tokens": 8}}}\n\n'
+            )
             yield b'data: [DONE]\n\n'
 
         async def mock_call_next(req):
@@ -291,7 +352,7 @@ class TestTelemetryMiddleware:
             mock_time.side_effect = [0.0, 0.200]  # 200ms streaming duration
 
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify log was emitted after streaming completion
         assert len(self.log_records) == 1
@@ -312,6 +373,50 @@ class TestTelemetryMiddleware:
         assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
 
+    def test_extract_streaming_usage_json_fallback(self):
+        """Streaming usage parser should fall back to JSON when SSE parsing fails."""
+        class AsyncIterResponse:
+            def __init__(self, chunks):
+                self._chunks = chunks
+
+            def __aiter__(self):
+                async def generator():
+                    for chunk in self._chunks:
+                        yield chunk
+                return generator()
+
+        response = AsyncIterResponse([b'{"usage": {"input_tokens": 2, "output_tokens": 3}}'])
+
+        import asyncio
+        reconstructed, usage = asyncio.run(self.middleware._extract_streaming_usage(response))
+
+        assert hasattr(reconstructed, "__aiter__")
+        assert usage["prompt_tokens"] == 2
+        assert usage["completion_tokens"] == 3
+        assert usage["total_tokens"] == 5
+
+    def test_extract_streaming_usage_body_iterator(self):
+        """StreamingResponse-style body_iterator should be parsed and restored."""
+        class BodyIteratorResponse:
+            def __init__(self, chunks):
+                async def iterator():
+                    for chunk in chunks:
+                        yield chunk
+                self.body_iterator = iterator()
+
+        response = BodyIteratorResponse([
+            b'data: {"id": "abc", "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}}\n\n',
+            b'data: [DONE]\n\n',
+        ])
+
+        import asyncio
+        reconstructed, usage = asyncio.run(self.middleware._extract_streaming_usage(response))
+
+        assert reconstructed is response
+        assert usage["prompt_tokens"] == 1
+        assert usage["completion_tokens"] == 2
+        assert usage["total_tokens"] == 3
+
     def test_error_response_with_exception(self):
         """Test error response with exception details."""
         request = self.create_mock_request(
@@ -320,9 +425,6 @@ class TestTelemetryMiddleware:
                 "messages": [{"role": "user", "content": "Hello"}]
             }
         )
-
-        # Mock exception during request handling
-        error_response = self.create_mock_response(429, {"error": {"message": "Rate limit exceeded"}})
 
         async def mock_call_next_with_error(req):
             from fastapi import HTTPException
@@ -333,7 +435,7 @@ class TestTelemetryMiddleware:
 
             import asyncio
             with pytest.raises(Exception):  # Exception should be re-raised
-                result = asyncio.run(self.middleware.dispatch(request, mock_call_next_with_error))
+                asyncio.run(self.middleware.dispatch(request, mock_call_next_with_error))
 
         # Verify error log was emitted
         assert len(self.log_records) == 1
@@ -381,7 +483,7 @@ class TestTelemetryMiddleware:
             mock_time.side_effect = [0.0, 0.080]
 
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify client_request_id is included
         assert len(self.log_records) == 1
@@ -423,7 +525,7 @@ class TestTelemetryMiddleware:
             mock_time.side_effect = [0.0, 0.060]
 
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify upstream_model defaults to alias when unknown
         assert len(self.log_records) == 1
@@ -461,7 +563,7 @@ class TestTelemetryMiddleware:
             mock_time.side_effect = [0.0, 0.040]
 
             import asyncio
-            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
 
         # Verify parse error is handled gracefully
         assert len(self.log_records) == 1

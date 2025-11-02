@@ -9,8 +9,11 @@ WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install the package in editable mode
-COPY pyproject.toml /app/
+# Prepare project sources for editable install
+COPY pyproject.toml README.md LICENSE /app/
+COPY src /app/src
+COPY entrypoint.sh /app/entrypoint.sh
+
 RUN pip install --no-cache-dir -e .
 
 EXPOSE 4000

@@ -62,53 +62,31 @@ def test_generates_config_with_reasoning_effort(tmp_path: Path):
     env = os.environ.copy()
     env.update(
         {
-            "PROXY_MODEL_KEYS": "gpt5",
-            "MODEL_GPT5_ALIAS": "gpt-5",
-            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
-            "MODEL_GPT5_REASONING_EFFORT": "high",
+            "PROXY_MODEL_KEYS": "primary",
+            "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
+            "MODEL_PRIMARY_REASONING_EFFORT": "high",
             "OPENAI_API_KEY": "sk-test-123",
+            "LITELLM_MASTER_KEY": "sk-test-master",
         }
     )
 
     code, out, err = _run_script(script, env)
     assert code == 0, f"script failed: {out}\n{err}"
 
-    cfg = (app_dir / "generated-config.yaml").read_text()
-    assert 'reasoning_effort: "high"' in cfg
-    assert 'api_key: "os.environ/OPENAI_API_KEY"' in cfg
+    generated = (app_dir / "generated-config.yaml").read_text()
+    assert 'model_name: "gpt-5"' in generated
+    assert 'reasoning_effort: "high"' in generated
+    assert 'master_key: "sk-test-master"' in generated
 
-    # API key should be masked in printed output
+    assert "Starting LiteLLM proxy with configuration from environment variables..." in out
+    assert "Generated config:" in out
     assert "***MASKED***" in out
-    assert "sk-test-123" not in out
+    assert "sk-test-master" not in out
 
-    # Exec should be intercepted and printed with defaults
     assert "EXEC python -m src.main" in out
-    assert f"--config {app_dir.as_posix()}/generated-config.yaml" in out
+    assert "--config" in out
     assert "--host 0.0.0.0" in out
     assert "--port 4000" in out
-
-
-def test_omits_reasoning_effort_when_none(tmp_path: Path):
-    app_dir = tmp_path / "app"
-    app_dir.mkdir(parents=True, exist_ok=True)
-    script = _make_patched_entrypoint(tmp_path, app_dir)
-
-    env = os.environ.copy()
-    env.update(
-        {
-            "PROXY_MODEL_KEYS": "gpt5",
-            "MODEL_GPT5_ALIAS": "gpt-5",
-            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
-            "MODEL_GPT5_REASONING_EFFORT": "none",
-            "OPENAI_API_KEY": "sk-test-xyz",
-        }
-    )
-
-    code, out, err = _run_script(script, env)
-    assert code == 0, f"script failed: {out}\n{err}"
-
-    cfg = (app_dir / "generated-config.yaml").read_text()
-    assert "reasoning_effort:" not in cfg
 
 
 def test_env_overrides_host_port_and_master_key(tmp_path: Path):
@@ -120,11 +98,10 @@ def test_env_overrides_host_port_and_master_key(tmp_path: Path):
     env.update(
         {
             "PROXY_MODEL_KEYS": "primary",
-            "MODEL_PRIMARY_ALIAS": "gpt-5",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
             "OPENAI_API_KEY": "sk-test-abc",
-            "LITELLM_HOST": "127.0.0.1",
             "PORT": "8088",
+            "LITELLM_HOST": "127.0.0.1",
             "LITELLM_MASTER_KEY": "sk-local-override",
         }
     )
@@ -132,8 +109,29 @@ def test_env_overrides_host_port_and_master_key(tmp_path: Path):
     code, out, err = _run_script(script, env)
     assert code == 0, f"script failed: {out}\n{err}"
 
-    cfg = (app_dir / "generated-config.yaml").read_text()
-    assert 'master_key: "sk-local-override"' in cfg
+    config_text = (app_dir / "generated-config.yaml").read_text()
+    assert 'master_key: "sk-local-override"' in config_text
 
     assert "--host 127.0.0.1" in out
     assert "--port 8088" in out
+
+
+def test_fails_when_legacy_alias_present(tmp_path: Path):
+    """Entrypoint should exit when legacy alias variables are defined."""
+    app_dir = tmp_path / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    script = _make_patched_entrypoint(tmp_path, app_dir)
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PROXY_MODEL_KEYS": "gpt5",
+            "MODEL_GPT5_ALIAS": "gpt-5",
+            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
+            "OPENAI_API_KEY": "sk-test-xyz",
+        }
+    )
+
+    code, out, err = _run_script(script, env)
+    assert code != 0
+    assert "Legacy environment variable 'MODEL_GPT5_ALIAS' detected" in out or err

@@ -1,26 +1,80 @@
 #!/bin/bash
-# Entrypoint script that generates config from .env and starts the service
+# Entrypoint script that generates config from .env and starts the service, using PRD 3 schema.
 
 set -e
 
 echo "Starting LiteLLM proxy with configuration from environment variables..."
 
-# Start with basic config structure
-cat > /app/generated-config.yaml << EOF
+# Reject legacy alias variables
+for var in $(env | grep -E "MODEL_.*_ALIAS=" | cut -d= -f1); do
+    echo "ERROR: Legacy environment variable '$var' detected."
+    echo "Please remove all MODEL_*_ALIAS variables and use only MODEL_*_UPSTREAM_MODEL."
+    echo "The alias will be automatically derived from the upstream model name."
+    exit 1
+done
+
+if [[ -z "${PROXY_MODEL_KEYS:-}" ]]; then
+    echo "ERROR: PROXY_MODEL_KEYS must be set (comma-separated logical keys)."
+    exit 1
+fi
+
+CONFIG_PATH="/app/generated-config.yaml"
+cat > "${CONFIG_PATH}" << EOF
 model_list:
 EOF
 
-# Helper function to add model to config
-add_model() {
-    local alias="$1"
-    local upstream_model="$2"
-    local reasoning_effort="$3"
+IFS=',' read -ra RAW_KEYS <<< "${PROXY_MODEL_KEYS}"
 
-    cat >> /app/generated-config.yaml << EOF
+derive_alias() {
+    local upstream="$1"
+    python - "$upstream" <<'PY'
+import sys
+
+upstream = sys.argv[1]
+for prefix in ("openai/", "anthropic/", "google/", "azure/"):
+    if upstream.startswith(prefix):
+        print(upstream[len(prefix):])
+        break
+else:
+    print(upstream)
+PY
+}
+
+for raw_key in "${RAW_KEYS[@]}"; do
+    trimmed="$(echo "${raw_key}" | tr -d '[:space:]')"
+    if [[ -z "${trimmed}" ]]; then
+        continue
+    fi
+    upper_key="$(echo "${trimmed}" | tr '[:lower:]' '[:upper:]')"
+    prefix="MODEL_${upper_key}_"
+
+    upstream_var="${prefix}UPSTREAM_MODEL"
+    upstream_model="${!upstream_var}"
+    if [[ -z "${upstream_model}" ]]; then
+        echo "ERROR: Missing environment variable: ${upstream_var}"
+        exit 1
+    fi
+
+    alias="$(derive_alias "${upstream_model}")"
+    if [[ -z "${alias}" ]]; then
+        echo "ERROR: Unable to derive alias for upstream model '${upstream_model}'."
+        exit 1
+    fi
+
+    reasoning_var="${prefix}REASONING_EFFORT"
+    reasoning_effort="${!reasoning_var}"
+
+    if [[ "${upstream_model}" != openai/* ]]; then
+        model_line="openai/${upstream_model}"
+    else
+        model_line="${upstream_model}"
+    fi
+
+    cat >> "${CONFIG_PATH}" << EOF
   - model_name: "${alias}"
     litellm_params:
-      model: "openai/${upstream_model}"
-      api_base: "${OPENAI_BASE_URL:-https://agentrouter.org/v1}"
+      model: "${model_line}"
+      api_base: "${OPENAI_API_BASE:-https://agentrouter.org/v1}"
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
       headers:
@@ -28,30 +82,16 @@ add_model() {
         "Content-Type": "application/json"
 EOF
 
-    # Add reasoning_effort parameter if specified and not "none"
     if [[ -n "${reasoning_effort}" && "${reasoning_effort}" != "none" ]]; then
-      echo "      reasoning_effort: \"${reasoning_effort}\"" >> /app/generated-config.yaml
+        echo "      reasoning_effort: \"${reasoning_effort}\"" >> "${CONFIG_PATH}"
     fi
-}
+done
 
-# Add models based on configuration
-if [[ -n "${MODEL_GPT5_ALIAS}" ]]; then
-    add_model "${MODEL_GPT5_ALIAS}" "${MODEL_GPT5_UPSTREAM_MODEL:-gpt-5}" "${MODEL_GPT5_REASONING_EFFORT:-none}"
-fi
-
-if [[ -n "${MODEL_DEEPSEEK_ALIAS}" ]]; then
-    add_model "${MODEL_DEEPSEEK_ALIAS}" "${MODEL_DEEPSEEK_UPSTREAM_MODEL:-deepseek-v3.2}" "${MODEL_DEEPSEEK_REASONING_EFFORT:-none}"
-fi
-
-if [[ -n "${MODEL_GLM_ALIAS}" ]]; then
-    add_model "${MODEL_GLM_ALIAS}" "${MODEL_GLM_UPSTREAM_MODEL:-glm-4.6}" "${MODEL_GLM_REASONING_EFFORT:-none}"
-fi
-
-# Add shared configuration
-cat >> /app/generated-config.yaml << EOF
+cat >> "${CONFIG_PATH}" << EOF
 
 litellm_settings:
   drop_params: true
+  set_verbose: false
 
 # Default completion parameters (can be overridden per-request)
 completion_params:
@@ -62,9 +102,12 @@ general_settings:
 EOF
 
 echo "Generated config:"
-# Mask the API key for security in logs
-sed 's/\(api_key: "\)[^"]*/\1***MASKED***"/' /app/generated-config.yaml
+sed -e 's/\(api_key: "\)[^"]*/\1***MASKED***"/' \
+    -e 's/\(master_key: "\)[^"]*/\1***MASKED***"/' \
+    "${CONFIG_PATH}"
 echo ""
 
-# Start the proxy with the generated config
-exec python -m src.main --config /app/generated-config.yaml --host "0.0.0.0" --port "${PORT:-4000}"
+HOST="${LITELLM_HOST:-0.0.0.0}"
+PORT_VALUE="${PORT:-4000}"
+
+exec python -m src.main --config "${CONFIG_PATH}" --host "${HOST}" --port "${PORT_VALUE}"

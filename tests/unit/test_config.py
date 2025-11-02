@@ -95,11 +95,9 @@ class TestLoadModelSpecsFromEnv:
         monkeypatch.setenv("OPENAI_API_BASE", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
-        monkeypatch.setenv("MODEL_GPT5_ALIAS", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_REASONING_EFFORT", "medium")
 
-        monkeypatch.setenv("MODEL_DEEPSEEK_ALIAS", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
 
         specs = load_model_specs_from_env()
@@ -151,7 +149,6 @@ class TestPrepareConfig:
     def test_prepare_config_from_env(self, monkeypatch):
         """When CLI specs missing, environment should be used."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "primary")
-        monkeypatch.setenv("MODEL_PRIMARY_ALIAS", "primary")
         monkeypatch.setenv("MODEL_PRIMARY_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-env")
 

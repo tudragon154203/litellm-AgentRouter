@@ -24,13 +24,22 @@ class TestModelSpecCoverage:
             )
 
     def test_model_spec_empty_alias(self):
-        """Test ModelSpec validation with empty alias."""
-        with pytest.raises(ValueError, match="Model alias cannot be empty"):
-            ModelSpec(
-                key="test",
-                alias="",
-                upstream_model="gpt-5"
-            )
+        """Test ModelSpec validation with empty alias - should be auto-derived from upstream."""
+        spec = ModelSpec(
+            key="test",
+            alias="",  # Will be auto-derived
+            upstream_model="gpt-5"
+        )
+        assert spec.alias == "gpt-5"  # Auto-derived from upstream
+
+    def test_model_spec_none_alias(self):
+        """Alias of None should also be auto-derived."""
+        spec = ModelSpec(
+            key="test",
+            alias=None,  # type: ignore[arg-type]
+            upstream_model="openai/gpt-5",
+        )
+        assert spec.alias == "gpt-5"
 
     def test_model_spec_empty_upstream_model(self):
         """Test ModelSpec validation with empty upstream model."""
@@ -45,20 +54,23 @@ class TestModelSpecCoverage:
 class TestLoadModelSpecsFromEnvCoverage:
     """Test edge cases for load_model_specs_from_env."""
 
-    def test_missing_alias_env_var(self):
-        """Test error when MODEL_XXX_ALIAS is missing."""
+    def test_legacy_alias_env_var_raises(self):
+        """Legacy MODEL_XXX_ALIAS variables should raise a helpful error."""
         with patch.dict(os.environ, {
             "PROXY_MODEL_KEYS": "test",
-            "MODEL_TEST_UPSTREAM_MODEL": "gpt-5"
+            "MODEL_TEST_ALIAS": "legacy-alias",
+            "MODEL_TEST_UPSTREAM_MODEL": "gpt-5",
         }, clear=True):
-            with pytest.raises(ValueError, match="Missing environment variable: MODEL_TEST_ALIAS"):
+            with pytest.raises(
+                ValueError,
+                match="Legacy environment variable 'MODEL_TEST_ALIAS' detected",
+            ):
                 load_model_specs_from_env()
 
     def test_missing_upstream_model_env_var(self):
         """Test error when MODEL_XXX_UPSTREAM_MODEL is missing."""
         with patch.dict(os.environ, {
             "PROXY_MODEL_KEYS": "test",
-            "MODEL_TEST_ALIAS": "test-model"
         }, clear=True):
             with pytest.raises(ValueError, match="Missing environment variable: MODEL_TEST_UPSTREAM_MODEL"):
                 load_model_specs_from_env()
@@ -101,7 +113,7 @@ class TestRenderConfigCoverage:
             )
 
             with patch('builtins.print') as mock_print:
-                config_text = render_config(
+                render_config(
                     model_specs=[model_spec],
                     global_upstream_base="https://api.openai.com",
                     global_upstream_key_env="API_KEY",
