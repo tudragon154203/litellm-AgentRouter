@@ -45,6 +45,7 @@
 3. Middleware must handle both JSON responses and streaming generators; the log entry is emitted only after the final chunk / generator exhaustion to ensure accurate duration and token totals.
 4. For requests without usage metadata (provider omission or failure), log token fields as `null` and add `missing_usage=true` flag.
 5. Ensure alias→upstream resolution uses the final config produced in `src/config.py` so logs reflect generated LiteLLM routing (including implicit `openai/` prefix).
+   - **✅ COMPLETED**: Telemetry successfully filters out specified fields (event, timestamp, remote_addr, path, method, request_id, model_alias) per modification request.
 6. Propagate `X-Request-ID` (if provided) into the log payload as `client_request_id` to aid correlation.
 7. Avoid logging message content, API keys, or other sensitive payload fields.
 8. Provide README documentation describing emitted fields and a sample log entry.

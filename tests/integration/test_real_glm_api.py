@@ -79,7 +79,8 @@ class TestRealGLMAPI:
         msg = resp.choices[0].message
         content = (getattr(msg, 'content', None) or getattr(msg, 'reasoning_content', None) or "").strip().lower()
         # GLM might give reasoning or direct answer, be more flexible
-        assert any(x in content for x in ["15", "fifteen", "seven", "eight", "7", "8", "add", "+", "equals", "="])  # allow reasoning or direct answer
+        assert any(x in content for x in ["15", "fifteen", "seven", "eight", "7", "8",
+                   "add", "+", "equals", "="])  # allow reasoning or direct answer
 
     def test_glm_chinese_text(self):
         """Test GLM's Chinese language capabilities."""

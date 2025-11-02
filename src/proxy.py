@@ -13,6 +13,17 @@ def start_proxy(args: argparse.Namespace, config_path: Path) -> None:
     """Start the LiteLLM proxy with the given configuration."""
     from litellm.proxy.proxy_cli import run_server
 
+    # Initialize telemetry logging regardless of model spec source
+    try:
+        from .telemetry import instrument_proxy_logging
+        model_specs = getattr(args, "model_specs", None) or []
+        instrument_proxy_logging(model_specs)
+    except Exception as e:
+        # Log warning but continue with proxy startup
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to initialize telemetry logging: {e}")
+
     cli_args = [
         "--host",
         args.host,

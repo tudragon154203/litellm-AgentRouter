@@ -10,6 +10,7 @@ A modular LiteLLM proxy launcher that exposes an OpenAI-compatible API endpoint 
 │   ├── cli.py           # CLI argument parsing
 │   ├── config.py        # Configuration management
 │   ├── proxy.py         # Proxy server logic
+│   ├── telemetry.py     # Request telemetry logging middleware
 │   └── utils.py         # Utility functions
 ├── docker-compose.yml   # Docker Compose configuration
 
@@ -508,6 +509,190 @@ pytest
 - `src/cli.py`: Command-line interface and argument parsing
 - `src/config.py`: Configuration file handling and validation
 - `src/proxy.py`: LiteLLM proxy server management
+- `src/telemetry.py`: Request telemetry logging middleware
 - `src/utils.py`: Shared utilities (signal handling, dotenv loading, etc.)
 
 The modular structure makes it easy to extend functionality and maintain clean separation of concerns.
+
+## Request Telemetry Logging
+
+The proxy automatically emits structured JSON logs for every chat completion request, providing visibility into model usage, latency, and error patterns. This telemetry is designed for observability, cost tracking, and performance monitoring.
+
+### Enabled by Default
+
+Telemetry logging is automatically enabled when the proxy starts with model specifications. No additional configuration is required.
+
+### Log Format
+
+Each chat completion request generates a single JSON log line with the following structure:
+
+```json
+{
+  "event": "chat_completion",
+  "timestamp": "2025-01-15T10:30:45.123456+00:00",
+  "remote_addr": "192.168.1.100:54321",
+  "path": "/v1/chat/completions",
+  "method": "POST",
+  "status_code": 200,
+  "duration_ms": 150.75,
+  "streaming": false,
+  "request_id": "chatcmpl-abc123",
+  "model_alias": "gpt-5",
+  "upstream_model": "openai/gpt-5",
+  "prompt_tokens": 25,
+  "completion_tokens": 40,
+  "reasoning_tokens": 8,
+  "total_tokens": 65,
+  "error_type": null,
+  "error_message": null,
+  "client_request_id": "client-req-456"
+}
+```
+
+### Field Descriptions
+
+| Field | Description |
+|--------|-------------|
+| `event` | Always `"chat_completion"` for log filtering |
+| `timestamp` | ISO-8601 timestamp with timezone |
+| `remote_addr` | Client IP address (best effort) |
+| `path` | Always `"/v1/chat/completions"` |
+| `method` | Always `"POST"` |
+| `status_code` | Final HTTP status code |
+| `duration_ms` | End-to-end request duration in milliseconds |
+| `streaming` | Boolean indicating if request was streaming |
+| `request_id` | Response completion ID when available |
+| `model_alias` | Model name from request (`model` field) |
+| `upstream_model` | Resolved upstream model (`openai/...`) |
+| `prompt_tokens` | Input token count when provided |
+| `completion_tokens` | Output tokens (excluding reasoning) |
+| `reasoning_tokens` | Reasoning tokens when supported |
+| `total_tokens` | Total token usage when provided |
+| `error_type` | Exception type on errors, `null` on success |
+| `error_message` | Sanitized error message when errors occur |
+| `client_request_id` | `X-Request-ID` header when provided |
+
+### Special Cases
+
+#### Missing Usage Data
+
+When providers don't return usage metadata:
+
+```json
+{
+  "prompt_tokens": null,
+  "completion_tokens": null,
+  "reasoning_tokens": null,
+  "total_tokens": null,
+  "missing_usage": true
+}
+```
+
+#### Error Responses
+
+When requests fail:
+
+```json
+{
+  "status_code": 429,
+  "error_type": "RateLimitError",
+  "error_message": "Rate limit exceeded",
+  "prompt_tokens": null,
+  "completion_tokens": null,
+  "total_tokens": null
+}
+```
+
+#### Parse Errors
+
+When response parsing fails:
+
+```json
+{
+  "parse_error": true,
+  "prompt_tokens": null,
+  "completion_tokens": null,
+  "total_tokens": null
+}
+```
+
+### Integration Examples
+
+#### CloudWatch Logs
+
+```bash
+# Collect logs with jq filtering
+curl localhost:4000/v1/chat/completions ... | \
+  jq -c '. | select(.event == "chat_completion")' >> cloudwatch-logs.json
+```
+
+#### Loki/Prometheus
+
+```yaml
+# Grafana Loki log parsing rules
+- match:
+    selector: '{app="litellm-proxy"}'
+    stages:
+      - json:
+          expressions:
+            duration: duration_ms
+            status: status_code
+            model: model_alias
+      - regex:
+          expression: '(?P<level>\w+)'
+```
+
+#### Cost Attribution
+
+```python
+# Calculate per-model costs from logs
+import json
+
+def calculate_costs(log_file_path, cost_per_token):
+    model_costs = {}
+
+    with open(log_file_path) as f:
+        for line in f:
+            log = json.loads(line)
+            if log.get('event') != 'chat_completion':
+                continue
+
+            model = log['model_alias']
+            total_tokens = log.get('total_tokens', 0)
+
+            if total_tokens is not None:
+                cost = total_tokens * cost_per_token
+                model_costs[model] = model_costs.get(model, 0) + cost
+
+    return model_costs
+```
+
+### Performance Impact
+
+- **Overhead**: <5ms per request under typical load
+- **Thread Safety**: Safe with multiple workers (`--num_workers`)
+- **Failure Resilience**: Logging failures don't affect request processing
+
+### Logger Configuration
+
+Telemetry uses the `litellm_launcher.telemetry` logger at INFO level:
+
+```python
+import logging
+
+# Custom configuration
+logging.getLogger("litellm_launcher.telemetry").setLevel(logging.DEBUG)
+
+# Custom handler
+handler = logging.FileHandler("telemetry.log")
+logging.getLogger("litellm_launcher.telemetry").addHandler(handler)
+```
+
+### Disabling Telemetry
+
+To disable telemetry logging, use a custom LiteLLM config file instead of auto-generated configuration:
+
+```bash
+# Start with custom config (no telemetry)
+python -m src.main --config /path/to/custom-config.yaml
+```

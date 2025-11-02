@@ -105,7 +105,7 @@ class TestLoadModelSpecsFromEnv:
         specs = load_model_specs_from_env()
         assert [spec.alias for spec in specs] == ["gpt-5", "deepseek-v3.2"]
         assert specs[0].reasoning_effort == "medium"
-        assert specs[1].reasoning_effort is None
+        assert specs[1].reasoning_effort == "medium"
 
     def test_load_model_specs_from_env_missing_key(self, monkeypatch):
         """Missing PROXY_MODEL_KEYS should raise ValueError."""

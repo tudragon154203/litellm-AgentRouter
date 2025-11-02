@@ -25,6 +25,10 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def load_dotenv_files() -> None:
     """Load key-value pairs from .env files into the current environment."""
+    # Skip loading .env files if SKIP_DOTENV is set
+    if os.getenv("SKIP_DOTENV"):
+        return
+
     def load_file(path: Path) -> None:
         if not path.is_file():
             return

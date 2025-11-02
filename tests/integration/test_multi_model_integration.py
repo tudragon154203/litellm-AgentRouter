@@ -200,6 +200,16 @@ print(get_startup_message(args))
 
     def test_legacy_single_model_requires_new_schema(self):
         """Legacy single-model flags without model specs should fail."""
+        # Create a clean environment without any PROXY_MODEL_KEYS or model variables
+        clean_env = {}
+        # Keep only essential environment variables
+        for key in ["PATH", "PYTHONPATH", "SYSTEMROOT", "COMSPEC", "PATHEXT"]:
+            if key in os.environ:
+                clean_env[key] = os.environ[key]
+
+        clean_env["SKIP_PREREQ_CHECK"] = "1"
+        clean_env["SKIP_DOTENV"] = "1"
+
         result = subprocess.run(
             [
                 "python", "-m", "src.main",
@@ -210,7 +220,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "SKIP_PREREQ_CHECK": "1"}
+            env=clean_env
         )
 
         assert result.returncode != 0
@@ -218,11 +228,22 @@ print(get_startup_message(args))
 
     def test_error_handling_missing_env_vars(self):
         """Test error handling for missing required environment variables."""
+        # Create a clean environment and only set the test-specific variables
+        clean_env = {}
+        # Keep only essential environment variables
+        for key in ["PATH", "PYTHONPATH", "SYSTEMROOT", "COMSPEC", "PATHEXT"]:
+            if key in os.environ:
+                clean_env[key] = os.environ[key]
+
+        # Add test-specific environment variables
         env_vars = {
             "PROXY_MODEL_KEYS": "gpt5",
             "MODEL_GPT5_ALIAS": "gpt-5",
-            # Missing MODEL_GPT5_UPSTREAM_MODEL
+            # Missing MODEL_GPT5_UPSTREAM_MODEL intentionally
+            "SKIP_PREREQ_CHECK": "1",
+            "SKIP_DOTENV": "1"
         }
+        clean_env.update(env_vars)
 
         result = subprocess.run(
             [
@@ -231,7 +252,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars, "SKIP_PREREQ_CHECK": "1"}
+            env=clean_env
         )
 
         assert result.returncode != 0
