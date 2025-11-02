@@ -10,13 +10,10 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from src.config import (
-    ModelSpec,
-    create_temp_config_if_needed,
-    load_model_specs_from_env,
-    prepare_config,
-    render_config,
-)
+from src.config.models import ModelSpec
+from src.config.parsing import prepare_config, load_model_specs_from_env
+from src.config.rendering import render_config
+from src.utils import create_temp_config_if_needed
 
 
 def make_spec(

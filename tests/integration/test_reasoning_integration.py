@@ -10,7 +10,9 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from src.config import ModelSpec, prepare_config, render_config
+from src.config.models import ModelSpec
+from src.config.parsing import prepare_config
+from src.config.rendering import render_config
 
 
 def run_main_with_env(env: dict[str, str]) -> subprocess.CompletedProcess[str]:

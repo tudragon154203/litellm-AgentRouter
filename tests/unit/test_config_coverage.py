@@ -8,7 +8,9 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.config import ModelSpec, load_model_specs_from_env, render_config, prepare_config
+from src.config.models import ModelSpec
+from src.config.parsing import load_model_specs_from_env, prepare_config
+from src.config.rendering import render_config
 
 
 class TestModelSpecCoverage:

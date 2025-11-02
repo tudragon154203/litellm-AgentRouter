@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 from .utils import env_bool
-from .config import load_model_specs_from_cli
+from .config.parsing import load_model_specs_from_cli
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

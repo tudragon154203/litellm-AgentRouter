@@ -91,6 +91,30 @@ def attach_signal_handlers() -> None:
         signal.signal(sig, handle_signal)
 
 
+def create_temp_config_if_needed(config_text: str, is_generated: bool) -> Iterator[Path]:
+    """Persist a temporary config file for the lifetime of the context.
+
+    This was moved from config module to utils for better separation of concerns.
+    """
+    import tempfile
+    from pathlib import Path
+
+    config_file = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", prefix="litellm-config-", delete=False
+    )
+    try:
+        with config_file as handle:
+            handle.write(config_text)
+            handle.flush()
+            path = Path(handle.name)
+        yield path
+    finally:
+        try:
+            Path(config_file.name).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def validate_prereqs() -> None:
     """Validate that required dependencies are available."""
     if env_bool("SKIP_PREREQ_CHECK", False):

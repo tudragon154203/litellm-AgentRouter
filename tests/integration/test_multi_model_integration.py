@@ -140,7 +140,7 @@ import sys
 sys.path.insert(0, 'src')
 from src.main import get_startup_message
 from src.cli import parse_args
-from src.config import prepare_config
+from src.config.parsing import prepare_config
 
 args = parse_args([])
 prepare_config(args)
@@ -174,7 +174,7 @@ import sys
 sys.path.insert(0, 'src')
 from src.main import get_startup_message
 from src.cli import parse_args
-from src.config import prepare_config
+from src.config.parsing import prepare_config
 
 args = parse_args([])
 prepare_config(args)

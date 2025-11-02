@@ -9,7 +9,8 @@ import sys
 from typing import NoReturn
 
 from .cli import parse_args
-from .config import prepare_config, create_temp_config_if_needed
+from .config.parsing import prepare_config
+from .utils import create_temp_config_if_needed
 from .proxy import start_proxy
 from .utils import attach_signal_handlers, load_dotenv_files, validate_prereqs
 

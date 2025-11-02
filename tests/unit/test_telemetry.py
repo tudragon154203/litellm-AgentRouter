@@ -12,8 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import Request, Response
-from src.config import ModelSpec
-from src.telemetry import TelemetryMiddleware, create_alias_lookup, instrument_proxy_logging
+from src.config.models import ModelSpec
+from src.telemetry.middleware import TelemetryMiddleware
+from src.telemetry.alias_lookup import create_alias_lookup
+from src.telemetry.instrumentation import instrument_proxy_logging
 
 
 class TestAliasLookup:

@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""
+Configuration parsing functionality for LiteLLM proxy launcher.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import List
+
+from .models import ModelSpec
+
+
+def parse_model_spec(spec_str: str) -> ModelSpec:
+    """Parse a model specification string into a ModelSpec object.
+
+    Format: key=xxx,upstream=xxx[,alias=xxx][,base=xxx][,key_env=xxx][,reasoning=xxx]
+    """
+    parts = {}
+    for part in spec_str.split(','):
+        if '=' not in part:
+            raise ValueError(f"Invalid model spec part: {part}")
+        key, value = part.split('=', 1)
+        parts[key.strip()] = value.strip()
+
+    required_fields = ['key', 'upstream']
+    missing = [field for field in required_fields if field not in parts]
+    if missing:
+        raise ValueError(f"Missing required fields in model spec: {missing}")
+
+    # Alias is optional - derive from upstream if not provided
+    alias = parts.get('alias')
+
+    return ModelSpec(
+        key=parts['key'],
+        alias=alias,
+        upstream_model=parts['upstream'],
+        upstream_base=parts.get('base'),
+        upstream_key_env=parts.get('key_env'),
+        reasoning_effort=parts.get('reasoning'),
+    )
+
+
+def load_model_specs_from_env() -> List[ModelSpec]:
+    """Load model specifications from environment variables using new multi-model schema."""
+    proxy_model_keys = os.getenv("PROXY_MODEL_KEYS", "").strip()
+    if not proxy_model_keys:
+        raise ValueError(
+            "PROXY_MODEL_KEYS is not set. "
+            "Define at least one model using multi-model environment schema."
+        )
+
+    keys = [key.strip() for key in proxy_model_keys.split(',') if key.strip()]
+    model_specs: List[ModelSpec] = []
+
+    # Global defaults
+    global_base = os.getenv("OPENAI_API_BASE", "https://agentrouter.org/v1")
+    global_key_env = "OPENAI_API_KEY"
+
+    for key in keys:
+        prefix = f"MODEL_{key.upper()}_"
+
+        # Check for legacy alias variables and fail fast
+        alias_env_var = f"{prefix}ALIAS"
+        if os.getenv(alias_env_var):
+            raise ValueError(
+                f"Legacy environment variable '{alias_env_var}' detected. "
+                f"Please remove it and use only MODEL_{key.upper()}_UPSTREAM_MODEL. "
+                f"The alias will be automatically derived from the upstream model name."
+            )
+
+        upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
+        upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
+        upstream_key_env = os.getenv(f"{prefix}UPSTREAM_KEY_ENV") or global_key_env
+        reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
+
+        if not upstream_model:
+            raise ValueError(f"Missing environment variable: {prefix}UPSTREAM_MODEL")
+
+        # Create ModelSpec with alias=key (use key as alias when not explicitly provided)
+        model_specs.append(
+            ModelSpec(
+                key=key,
+                alias=key,  # Use key as alias when no explicit alias provided
+                upstream_model=upstream_model,
+                upstream_base=upstream_base,
+                upstream_key_env=upstream_key_env,
+                reasoning_effort=reasoning_effort,
+            )
+        )
+
+    return model_specs
+
+
+def load_model_specs_from_cli(model_spec_args: List[str] | None) -> List[ModelSpec]:
+    """Load model specifications from CLI --model-spec arguments."""
+    if not model_spec_args:
+        return []
+
+    return [parse_model_spec(spec_str) for spec_str in model_spec_args]
+
+
+def prepare_config(args) -> tuple[str, bool]:
+    """Prepare configuration from args, returning (config_text, is_generated).
+
+    Args:
+        args: Parsed CLI arguments with attributes like config, model_specs, etc.
+
+    Returns:
+        Tuple of (config_text, is_generated) where:
+        - config_text: YAML configuration string
+        - is_generated: True if config was generated from specs/env, False if from file
+    """
+    from pathlib import Path
+    import os
+    import sys
+    from .rendering import render_config
+
+    # If config file is provided, read and return it
+    if getattr(args, 'config', None):
+        config_path = Path(args.config)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {args.config}")
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return f.read(), False
+
+    # Otherwise generate config from model specs or environment
+    model_specs = getattr(args, 'model_specs', None)
+
+    if not model_specs:
+        # Try loading from environment
+        try:
+            model_specs = load_model_specs_from_env()
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # Check for missing environment variables in model specs
+    for spec in model_specs:
+        if spec.upstream_key_env and not os.getenv(spec.upstream_key_env):
+            print(
+                f"WARNING: Environment variable '{spec.upstream_key_env}' "
+                f"for model '{spec.alias}' is not set",
+                file=sys.stderr
+            )
+
+    # Get configuration parameters from args with defaults
+    global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"
+    global_upstream_key_env = getattr(args, 'upstream_key_env', None) or "OPENAI_API_KEY"
+    master_key = None if getattr(args, 'no_master_key', False) else getattr(args, 'master_key', "sk-local-master")
+    drop_params = getattr(args, 'drop_params', True)
+    streaming = getattr(args, 'streaming', True)
+
+    # Generate configuration
+    config_text = render_config(
+        model_specs=model_specs,
+        global_upstream_base=global_upstream_base,
+        global_upstream_key_env=global_upstream_key_env,
+        master_key=master_key,
+        drop_params=drop_params,
+        streaming=streaming,
+    )
+
+    return config_text, True

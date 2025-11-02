@@ -33,7 +33,7 @@
 ## Test Plan (Write First)
 - **New unit tests**:
   - `tests/unit/test_module_exports.py`: validate that each public module exposes the documented entrypoints and that importing them yields callables wired to the refactored code.
-  - `tests/unit/test_internal_imports.py`: assert that attempting to reach private helpers directly raises the expected errors (or is blocked by `__all__`/wrapper APIs).
+  - `tests/unit/test_internal_imports.py`: assert that attempting to reach private helpers directly raises the expected errors (or is blocked by private naming conventions).
   - Update existing unit suites (CLI, config, proxy, telemetry, utils) to import from the refined module surfaces before implementation begins; they will fail until the refactor is complete.
 - **Integration tests**:
   - Adjust all integration fixtures to load helpers through the stabilized module paths and ensure startup flows (e.g., `tests/integration/test_multi_model_integration.py`) reference the documented entrypoints.
@@ -45,7 +45,7 @@
 ## Functional Requirements
 1. Break down oversized modules (currently `src/telemetry.py`, `src/config.py`, `src/cli.py`, `src/utils.py`) into smaller SOLID-aligned components while keeping public entrypoints stable.
 2. Update module interfaces to expose documented entrypoints (`main()`, `parse_args()`, `prepare_config()`, `start_proxy()`, telemetry middleware constructors, etc.) through explicit exports or factories.
-3. Guard internal-only helpers via module-level `__all__`, dedicated submodules, or renames so tests and downstream code cannot depend on private implementation details.
+3. Use private naming conventions (leading underscore) for internal helpers so tests and downstream code cannot depend on private implementation details.
 4. Adjust packaging metadata (`pyproject.toml`, console scripts, `entrypoint.sh`, Dockerfile, etc.) only where necessary to reference the refined modules.
 5. Update all test imports and helpers to use the public module surfaces and ensure they exercise the reorganized responsibilities.
 6. Provide clear developer-facing notes describing responsibility boundaries and any breaking changes so downstream consumers update their imports.

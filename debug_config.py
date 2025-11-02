@@ -7,7 +7,7 @@ import sys
 # Add src to path
 sys.path.insert(0, '/app/src')
 
-from src.config import load_model_specs_from_env, prepare_config
+from src.config.parsing import load_model_specs_from_env, prepare_config
 from src.cli import parse_args
 
 # Load environment as container would

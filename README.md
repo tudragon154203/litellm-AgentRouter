@@ -49,6 +49,40 @@ The proxy supports running multiple models concurrently from a single instance. 
 
 ### Environment-Based Configuration (Recommended)
 
+#### Migration Notes (v1.0.0)
+
+The `src/` package has been refactored to improve maintainability and follow SOLID principles:
+
+**Module Refactoring**
+- `src/config.py` (322 LOC) → Split into focused submodules:
+  - `src/config/models.py` - ModelSpec class and capabilities
+  - `src/config/parsing.py` - Environment and CLI parsing logic
+  - `src/config/rendering.py` - Configuration generation
+- `src/telemetry.py` (447 LOC) → Split into focused submodules:
+  - `src/telemetry/alias_lookup.py` - Model alias resolution
+  - `src/telemetry/middleware.py` - Request logging middleware
+
+**Import Changes**
+If you previously imported from the old module structure, update your imports:
+
+```python
+# Direct imports (use explicit submodule imports)
+from src.config.models import ModelSpec
+from src.config.parsing import prepare_config
+from src.telemetry.middleware import TelemetryMiddleware
+from src.telemetry.alias_lookup import create_alias_lookup
+```
+
+All public APIs remain stable - no breaking changes to documented entrypoints.
+
+**Benefits**
+- **Reduced complexity:** Large modules split into focused, single-responsibility components
+- **Improved testability:** Each submodule can be tested in isolation
+- **Better maintainability:** Clear separation of concerns
+- **Enhanced modularity:** Easier to extend individual features
+
+### Environment-Based Configuration (Recommended)
+
 Configure multiple models using the new `PROXY_MODEL_KEYS` schema:
 
 ```bash
