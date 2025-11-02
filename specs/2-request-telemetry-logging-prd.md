@@ -83,6 +83,7 @@
   - Provider omission of usage data (verifies `missing_usage` flag).
   - HTTP error path ensuring `error_type`/`error_message` populate and no token fields.
 - Tests validating alias→upstream resolution from `ModelSpec`.
+- Follow TDD: write failing tests capturing desired telemetry payloads and error handling before implementing middleware changes.
 
 ## Tooling & Dev Experience
 - Update `README.md` with a new "Request Telemetry Logging" section showing example output and explaining default behavior.
@@ -98,4 +99,13 @@
 - Launching the proxy locally (`python -m src.main ...`) and issuing a chat completion produces an INFO log line with the specified fields and accurate duration/token counts.
 - Streaming completions emit exactly one log entry after the final chunk with `streaming=true` and populated usage.
 - Failed requests emit telemetry entries capturing `error_type`, `error_message`, and `status_code`.
-- Test suite passes (`pytest`) and new tests cover success, streaming, missing usage, and error scenarios.
+- Test suite passes (`pytest`) with >95% coverage and no lint errors.
+
+## TODO (TDD Checklist)
+- [ ] Write unit tests for non-streaming success path validating all logged fields.
+- [ ] Write unit tests for streaming responses ensuring usage aggregation and single terminal log.
+- [ ] Add tests for missing usage metadata and parse-failure resilience.
+- [ ] Add tests for error responses capturing exception metadata in logs.
+- [ ] Implement telemetry middleware and supporting utilities to satisfy the tests.
+- [ ] Document logging behavior and sample output in `README.md`.
+- [ ] Verify `pytest --cov` reports >95% coverage and lint suite (e.g., `flake8`) passes cleanly.
