@@ -3,12 +3,22 @@
 Additional tests to improve coverage of telemetry module.
 """
 
-import asyncio
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from src.telemetry.middleware import TelemetryMiddleware
+
+
+def _build_async_stream(chunks):
+    """Create an async iterator over the provided chunks."""
+
+    async def iterator():
+        for chunk in chunks:
+            yield chunk
+
+    return iterator()
 
 
 class TestTelemetryMiddlewareCoverage:
@@ -80,7 +90,7 @@ class TestTelemetryMiddlewareCoverage:
 
         # Mock streaming response with bytes
         mock_response = MagicMock()
-        mock_response.body_iterator = self._create_async_stream([
+        mock_response.body_iterator = _build_async_stream([
             b'data: {"choices": [{"delta": {"content": "Hello"}}]\n\n',
             b'data: {"choices": [{"delta": {"content": " world"}}]\n\n',
             b'data: [DONE]\n\n'
@@ -95,14 +105,6 @@ class TestTelemetryMiddlewareCoverage:
 
             # Should have been called to log telemetry
             mock_logger.assert_called_once()
-
-    def _create_async_stream(self, chunks):
-        """Helper to create async iterator from chunks."""
-        async def async_stream():
-            for chunk in chunks:
-                yield chunk
-
-        return async_stream()
 
     async def test_middleware_gets_remote_addr_from_forwarded_header(self, telemetry_middleware):
         """Test remote address extraction from x-forwarded-for header."""
@@ -238,14 +240,6 @@ class TestTelemetryMiddlewareCoverage:
             assert "timestamp" in telemetry_data
             assert "duration_ms" in telemetry_data
 
-    def _create_async_stream(self, chunks):
-        """Helper to create async iterator from chunks."""
-        async def async_stream():
-            for chunk in chunks:
-                yield chunk
-
-        return async_stream()
-
 
 class TestExtractUsageDataCoverage:
     """Test edge cases for _extract_usage_data method."""
@@ -288,7 +282,7 @@ class TestExtractUsageDataCoverage:
     async def test_extract_usage_from_streaming_response_with_usage(self, telemetry_middleware):
         """Test extracting usage data from streaming response with usage info."""
         mock_response = MagicMock()
-        mock_response.body_iterator = self._create_async_stream([
+        mock_response.body_iterator = _build_async_stream([
             b'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n',
             b'data: {"usage": {"prompt_tokens": 10, "completion_tokens": 20}}\n\n',
             b'data: [DONE]\n\n'
@@ -297,14 +291,6 @@ class TestExtractUsageDataCoverage:
         result = await telemetry_middleware._extract_usage_data(mock_response, streaming=True)
 
         assert result == {"usage": {"prompt_tokens": 10, "completion_tokens": 20}}
-
-    def _create_async_stream(self, chunks):
-        """Helper to create async iterator from chunks."""
-        async def async_stream():
-            for chunk in chunks:
-                yield chunk
-
-        return async_stream()
 
 
 class TestTelemetryStreamingCoverage:
@@ -340,7 +326,7 @@ class TestTelemetryStreamingCoverage:
         # Mock streaming response with chunks
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.body_iterator = self._create_async_stream([
+        mock_response.body_iterator = _build_async_stream([
             b'data: {"usage": {"prompt_tokens": 5}}\n\n',
             b'data: {"choices": [{"delta": {"content": "Hello"}}]\n\n',
             b'data: [DONE]\n\n'
@@ -371,7 +357,7 @@ class TestTelemetryStreamingCoverage:
         # Mock streaming response without chunked data
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.body_iterator = self._create_async_stream([
+        mock_response.body_iterator = _build_async_stream([
             b'data: {"choices": [{"message": {"content": "Hello"}}]}\n\n'
         ])
 
@@ -384,11 +370,3 @@ class TestTelemetryStreamingCoverage:
             # Should process streaming but no usage found
             mock_logger.assert_called_once()
             assert response == mock_response
-
-    def _create_async_stream(self, chunks):
-        """Helper to create async iterator from chunks."""
-        async def async_stream():
-            for chunk in chunks:
-                yield chunk
-
-        return async_stream()

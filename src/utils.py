@@ -62,14 +62,26 @@ def quote(value: str) -> str:
 
 
 @contextmanager
-def temporary_config(config_text: str) -> Iterator[Path]:
-    """Persist a temporary config file for the lifetime of the context."""
+def temporary_config(config_data: str | Path, is_generated: bool = True) -> Iterator[Path]:
+    """Yield a config path, creating a temporary file when needed.
+
+    Args:
+        config_data: Configuration text (when generated) or an existing file path.
+        is_generated: Whether the config_data was freshly generated and needs persistence.
+    """
+    if not is_generated:
+        yield Path(config_data)
+        return
+
+    if not isinstance(config_data, str):
+        raise TypeError("Generated configuration data must be a string.")
+
     config_file = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", prefix="litellm-config-", delete=False
     )
     try:
         with config_file as handle:
-            handle.write(config_text)
+            handle.write(config_data)
             handle.flush()
             path = Path(handle.name)
         yield path
@@ -92,28 +104,10 @@ def attach_signal_handlers() -> None:
 
 
 @contextmanager
-def create_temp_config_if_needed(config_text: str, is_generated: bool) -> Iterator[Path]:
-    """Persist a temporary config file for the lifetime of the context.
-
-    This was moved from config module to utils for better separation of concerns.
-    """
-    import tempfile
-    from pathlib import Path
-
-    config_file = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yaml", prefix="litellm-config-", delete=False
-    )
-    try:
-        with config_file as handle:
-            handle.write(config_text)
-            handle.flush()
-            path = Path(handle.name)
+def create_temp_config_if_needed(config_data: str | Path, is_generated: bool) -> Iterator[Path]:
+    """Return a context manager that yields a config path, creating one when required."""
+    with temporary_config(config_data, is_generated) as path:
         yield path
-    finally:
-        try:
-            Path(config_file.name).unlink(missing_ok=True)
-        except Exception:
-            pass
 
 
 def validate_prereqs() -> None:

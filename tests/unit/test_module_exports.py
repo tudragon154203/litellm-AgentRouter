@@ -52,6 +52,7 @@ class TestModuleExports:
     def test_telemetry_module_exports(self):
         """Test that src.telemetry exposes documented entrypoints."""
         telemetry_module = importlib.import_module("src.telemetry")
+        assert telemetry_module is not None
 
         # Test that functions can be imported from telemetry submodules
         from src.telemetry.alias_lookup import create_alias_lookup

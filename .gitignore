@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 demo/
 *.zip
+.kiro/
 
 debug-config.yaml
 

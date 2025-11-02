@@ -44,6 +44,12 @@ def main(argv: list[str] | None = None) -> NoReturn:
 
     config_data, is_generated = prepare_config(args)
 
+    # Handle --print-config flag: print config and exit
+    if getattr(args, 'print_config', False) is True:
+        print(config_data)
+        sys.exit(0)
+        return
+
     with create_temp_config_if_needed(config_data, is_generated) as config_path:
         print(get_startup_message(args))
         start_proxy(args, config_path)

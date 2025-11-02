@@ -77,11 +77,11 @@ def load_model_specs_from_env() -> List[ModelSpec]:
         if not upstream_model:
             raise ValueError(f"Missing environment variable: {prefix}UPSTREAM_MODEL")
 
-        # Create ModelSpec with alias=key (use key as alias when not explicitly provided)
+        # Create ModelSpec with alias=None to auto-derive from upstream_model
         model_specs.append(
             ModelSpec(
                 key=key,
-                alias=key,  # Use key as alias when no explicit alias provided
+                alias=None,  # Let ModelSpec derive alias from upstream_model
                 upstream_model=upstream_model,
                 upstream_base=upstream_base,
                 upstream_key_env=upstream_key_env,
@@ -132,8 +132,10 @@ def prepare_config(args) -> tuple[str, bool]:
         # Try loading from environment
         try:
             model_specs = load_model_specs_from_env()
+            # Store model specs back into args for consistency
+            setattr(args, 'model_specs', model_specs)
         except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
+            print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)
 
     # Check for missing environment variables in model specs

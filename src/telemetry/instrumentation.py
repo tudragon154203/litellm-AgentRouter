@@ -24,15 +24,11 @@ def instrument_proxy_logging(model_specs: List[ModelSpec]) -> None:
     """
     try:
         # Import LiteLLM proxy module
-        from litellm.proxy.proxy_cli import run_server as proxy_server
+        from litellm.proxy import proxy_server
 
-        # Check if already instrumented
-        # Handle both click command and FastAPI app
+        # Get the app from proxy_server module
         if hasattr(proxy_server, 'app'):
             app = proxy_server.app
-        elif hasattr(proxy_server, 'ctx'):
-            # When called from click command context
-            app = proxy_server.ctx.ensure_object(dict).get('app')
         else:
             return  # No app available, skip instrumentation
 

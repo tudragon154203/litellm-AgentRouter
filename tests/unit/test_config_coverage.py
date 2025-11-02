@@ -104,7 +104,7 @@ class TestRenderConfigCoverage:
     def test_render_config_with_reasoning_unsupported_model(self):
         """Test rendering config with reasoning effort for unsupported model."""
         # Mock a model that explicitly doesn't support reasoning
-        with patch('src.config.get_model_capabilities') as mock_caps:
+        with patch('src.config.models.get_model_capabilities') as mock_caps:
             mock_caps.return_value = {"supports_reasoning": False}
 
             model_spec = ModelSpec(
@@ -180,7 +180,7 @@ class TestCreateTempConfigCoverage:
 
     def test_create_temp_config_with_existing_path(self):
         """Test when config_data is an existing path (not generated)."""
-        from src.config import create_temp_config_if_needed
+        from src.utils import temporary_config as create_temp_config_if_needed
         from unittest.mock import patch
 
         # Create a temporary file

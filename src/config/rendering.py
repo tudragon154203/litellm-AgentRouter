@@ -9,7 +9,8 @@ import sys
 from typing import Any, Dict, List
 
 from ..utils import quote
-from .models import ModelSpec, get_model_capabilities
+from . import models
+from .models import ModelSpec
 
 
 def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -> List[str]:
@@ -40,7 +41,7 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
         lines.append("      api_key: null")
 
     # Check model capabilities and add reasoning_effort if supported
-    capabilities = get_model_capabilities(model_spec.upstream_model)
+    capabilities = models.get_model_capabilities(model_spec.upstream_model)
     reasoning_effort = model_spec.reasoning_effort
 
     if reasoning_effort and reasoning_effort != "none":

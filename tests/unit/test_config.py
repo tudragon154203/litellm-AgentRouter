@@ -164,7 +164,7 @@ class TestPrepareConfig:
         config_text, is_generated = prepare_config(args)
         assert is_generated is True
         parsed = yaml.safe_load(config_text)
-        assert parsed["model_list"][0]["model_name"] == "primary"
+        assert parsed["model_list"][0]["model_name"] == "gpt-5"
         assert parsed["model_list"][0]["litellm_params"]["api_key"] == "os.environ/OPENAI_API_KEY"
 
     def test_prepare_config_missing_env_errors(self, monkeypatch):

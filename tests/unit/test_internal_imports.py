@@ -4,10 +4,7 @@ Unit tests for internal import guards - ensures internal helpers are properly hi
 These tests should fail initially and pass after the refactor enforces SOLID boundaries.
 """
 
-import pytest
 import importlib
-import sys
-from unittest.mock import patch
 
 
 class TestInternalImportGuards:

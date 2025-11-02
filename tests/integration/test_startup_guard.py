@@ -4,12 +4,9 @@ Integration guard tests ensuring CLI/proxy startup works through documented entr
 These tests validate that refined module surfaces support startup flows.
 """
 
-import subprocess
-import sys
 import tempfile
-from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
@@ -33,7 +30,6 @@ class TestStartupGuard:
     def test_config_module_prepare_config_function(self):
         """Test that config.prepare_config function works through refined interface."""
         from src.config.parsing import prepare_config
-        from unittest.mock import MagicMock
         import argparse
 
         # Test prepare_config with basic arguments
@@ -152,8 +148,8 @@ class TestStartupGuard:
 
     def test_telemetry_create_alias_lookup_function(self):
         """Test that telemetry.create_alias_lookup works through refined interface."""
-        from src.telemetry import create_alias_lookup
-        from src.config import ModelSpec
+        from src.telemetry.alias_lookup import create_alias_lookup
+        from src.config.models import ModelSpec
 
         # Test create_alias_lookup with model specs
         model_specs = [
@@ -191,7 +187,7 @@ class TestStartupGuard:
         ])
 
         # 2. Create and prepare config
-        from src.config.parsing import prepare_config, ModelSpec
+        from src.config.parsing import prepare_config
 
         # Set additional required args on args object
         args.print_config = False
@@ -201,9 +197,10 @@ class TestStartupGuard:
         args.model_specs = None
 
         config_result = prepare_config(args)
+        assert config_result is not None, "prepare_config should return config tuple"
 
         # 3. Create telemetry alias lookup
-        from src.telemetry import create_alias_lookup
+        from src.telemetry.alias_lookup import create_alias_lookup
         alias_lookup = create_alias_lookup([])
         assert isinstance(alias_lookup, dict), "Should create alias lookup"
 
@@ -215,6 +212,11 @@ class TestStartupGuard:
         from src.main import main
         assert callable(main), "Should have main function"
 
+        # 6. Ensure ModelSpec remains constructible as part of public API
+        from src.config.models import ModelSpec
+        spec = ModelSpec(key="alias", upstream_model="openai/gpt-4")
+        assert spec.key == "alias"
+
     def test_no_circular_imports_in_entrypoints(self):
         """Test that documented entrypoints don't have circular import issues."""
         # Import all documented entrypoints
@@ -223,7 +225,14 @@ class TestStartupGuard:
         from src.config.models import ModelSpec
         from src.config.parsing import parse_model_spec
         from src.proxy import start_proxy
-        from src.telemetry import TelemetryMiddleware, create_alias_lookup
+        from src.telemetry.middleware import TelemetryMiddleware
+        from src.telemetry.alias_lookup import create_alias_lookup
 
-        # If we got here without circular import errors, test passes
-        assert True, "All entrypoints imported successfully"
+        assert callable(main)
+        assert callable(parse_args)
+        assert callable(parse_model_spec)
+        assert callable(start_proxy)
+        assert callable(TelemetryMiddleware)
+        assert isinstance(create_alias_lookup([]), dict)
+        circular_spec = ModelSpec(key="circular", alias="circ", upstream_model="openai/gpt-4")
+        assert circular_spec.alias == "circ"
