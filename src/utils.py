@@ -91,6 +91,7 @@ def attach_signal_handlers() -> None:
         signal.signal(sig, handle_signal)
 
 
+@contextmanager
 def create_temp_config_if_needed(config_text: str, is_generated: bool) -> Iterator[Path]:
     """Persist a temporary config file for the lifetime of the context.
 

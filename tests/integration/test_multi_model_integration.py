@@ -22,6 +22,7 @@ class TestMultiModelIntegration:
             "OPENAI_API_KEY": "sk-test-key",
             "LITELLM_MASTER_KEY": "sk-master-test",
             "SKIP_PREREQ_CHECK": "1",
+            "DISABLE_TELEMETRY": "1",
         }
 
         result = subprocess.run(

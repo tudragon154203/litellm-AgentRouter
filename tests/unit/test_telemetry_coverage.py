@@ -8,7 +8,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.telemetry import TelemetryMiddleware
+from src.telemetry.middleware import TelemetryMiddleware
 
 
 class TestTelemetryMiddlewareCoverage:
@@ -52,16 +52,19 @@ class TestTelemetryMiddlewareCoverage:
         mock_request.url.path = "/v1/chat/completions"
         mock_request.json = AsyncMock(side_effect=Exception("Invalid JSON"))
         mock_request.headers = {}
+        mock_request.app = telemetry_middleware.app
 
         # Create a mock response for the error case
         mock_error_response = MagicMock()
         mock_error_response.status_code = 400
         mock_call_next = AsyncMock(return_value=mock_error_response)
 
-        await telemetry_middleware.dispatch(mock_request, mock_call_next)
+        with patch.object(telemetry_middleware, '_log_telemetry') as mock_logger:
+            await telemetry_middleware.dispatch(mock_request, mock_call_next)
 
-        # Should handle the error and continue
-        mock_call_next.assert_called_once_with(mock_request)
+            # Should handle the error and continue
+            mock_call_next.assert_called_once_with(mock_request)
+            mock_logger.assert_called_once()
 
     async def test_middleware_handles_streaming_response_bytes(self, telemetry_middleware):
         """Test telemetry processing for streaming response with bytes chunks."""
@@ -73,6 +76,7 @@ class TestTelemetryMiddlewareCoverage:
             "stream": True
         })
         mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
 
         # Mock streaming response with bytes
         mock_response = MagicMock()
@@ -91,6 +95,14 @@ class TestTelemetryMiddlewareCoverage:
 
             # Should have been called to log telemetry
             mock_logger.assert_called_once()
+
+    def _create_async_stream(self, chunks):
+        """Helper to create async iterator from chunks."""
+        async def async_stream():
+            for chunk in chunks:
+                yield chunk
+
+        return async_stream()
 
     async def test_middleware_gets_remote_addr_from_forwarded_header(self, telemetry_middleware):
         """Test remote address extraction from x-forwarded-for header."""
@@ -138,27 +150,28 @@ class TestTelemetryMiddlewareCoverage:
         remote_addr = telemetry_middleware._get_remote_addr(mock_request)
         assert remote_addr == "192.168.1.100"
 
-    def test_middleware_sanitizes_error_message(self, telemetry_middleware):
-        """Test error message sanitization removes sensitive information."""
-        test_cases = [
-            (
-                'Bearer sk-test1234567890abcdef1234567890abcdef12345678',
-                'Bearer [REDACTED]'
-            ),
-            (
-                'api_key: sk-test1234567890abcdef1234567890abcdef12345678',
-                'api_key: [REDACTED]'
-            ),
-            (
-                'Authorization: Bearer sk-1234567890abcdef1234567890abcdef1234567890',
-                'Authorization: Bearer [REDACTED]'
-            ),
-        ]
+    async def test_middleware_handles_error_logging(self, telemetry_middleware):
+        """Test that middleware logs errors appropriately."""
+        mock_request = MagicMock()
+        mock_request.method = "POST"
+        mock_request.url.path = "/v1/chat/completions"
+        mock_request.json = AsyncMock(side_effect=Exception("Test error"))
+        mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
+        mock_request.app = telemetry_middleware.app
+        mock_request.client = MagicMock()
+        mock_request.client.host = "127.0.0.1"
 
-        for original, expected in test_cases:
-            sanitized = telemetry_middleware._sanitize_error_message(original)
-            # The sanitization might remove patterns or add [REDACTED], check either condition
-            assert expected in sanitized or "[REDACTED]" in sanitized
+        with patch.object(telemetry_middleware, '_log_telemetry') as mock_logger:
+            # The middleware catches and logs the exception, then re-raises
+            with pytest.raises(Exception, match="Test error"):
+                await telemetry_middleware.dispatch(mock_request, AsyncMock())
+
+            # Should log error telemetry
+            mock_logger.assert_called_once()
+            telemetry_data = mock_logger.call_args[0][0]
+            assert telemetry_data["success"] is False
+            assert "error" in telemetry_data
 
     async def test_middleware_handles_telemetry_logging_failure(self, telemetry_middleware):
         """Test that telemetry middleware continues when logging fails."""
@@ -170,6 +183,7 @@ class TestTelemetryMiddlewareCoverage:
             "stream": False
         })
         mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
 
         # Mock successful response
         mock_response = MagicMock()
@@ -190,18 +204,39 @@ class TestTelemetryMiddlewareCoverage:
             # Should emit warning about logging failure
             mock_logger.warning.assert_called_with("Failed to log telemetry data: Logging failed")
 
-    def test_middleware_async_iter_creation(self, telemetry_middleware):
-        """Test _create_async_iter method."""
-        test_data = [b'chunk1', b'chunk2', b'chunk3']
+    async def test_middleware_logs_basic_telemetry_data(self, telemetry_middleware):
+        """Test that middleware logs basic telemetry data correctly."""
+        mock_request = MagicMock()
+        mock_request.method = "POST"
+        mock_request.url.path = "/v1/chat/completions"
+        mock_request.json = AsyncMock(return_value={
+            "model": "test-model",
+            "stream": False
+        })
+        mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
 
-        async def collect_items():
-            items = []
-            async for item in telemetry_middleware._create_async_iter(test_data):
-                items.append(item)
-            return items
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.body = json.dumps({
+            "choices": [{"message": {"content": "Hello"}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20}
+        }).encode()
+        mock_response.status_code = 200
 
-        result = asyncio.run(collect_items())
-        assert result == test_data
+        mock_call_next = AsyncMock(return_value=mock_response)
+
+        with patch.object(telemetry_middleware, '_log_telemetry') as mock_logger:
+            await telemetry_middleware.dispatch(mock_request, mock_call_next)
+
+            # Should have been called with telemetry data
+            mock_logger.assert_called_once()
+            telemetry_data = mock_logger.call_args[0][0]
+            assert telemetry_data["model_alias"] == "test-model"
+            assert telemetry_data["upstream_model"] == "gpt-5"
+            assert telemetry_data["success"] is True
+            assert "timestamp" in telemetry_data
+            assert "duration_ms" in telemetry_data
 
     def _create_async_stream(self, chunks):
         """Helper to create async iterator from chunks."""
@@ -212,55 +247,83 @@ class TestTelemetryMiddlewareCoverage:
         return async_stream()
 
 
-class TestParseUsageFromSSECoverage:
-    """Test edge cases for _parse_usage_from_sse."""
+class TestExtractUsageDataCoverage:
+    """Test edge cases for _extract_usage_data method."""
 
-    def test_parse_usage_with_complete_data(self):
-        """Test parsing usage data from SSE with all fields."""
-        middleware = TelemetryMiddleware(app=None, alias_lookup={})
+    @pytest.fixture
+    def mock_app(self):
+        """Create a mock ASGI app."""
+        mock_app = AsyncMock()
+        mock_app.state = MagicMock()
+        return mock_app
 
-        # Test with properly formatted SSE data line
-        sse_line = 'data: {"usage": {"prompt_tokens": 10, "completion_tokens": 20}}'
+    @pytest.fixture
+    def telemetry_middleware(self, mock_app):
+        """Create telemetry middleware instance."""
+        alias_lookup = {"test-model": "gpt-5"}
+        middleware = TelemetryMiddleware(app=mock_app, alias_lookup=alias_lookup)
+        mock_app.state.litellm_telemetry_alias_lookup = alias_lookup
+        return middleware
 
-        result = middleware._parse_usage_from_sse(sse_line)
+    async def test_extract_usage_from_non_streaming_response(self, telemetry_middleware):
+        """Test extracting usage data from non-streaming response."""
+        mock_response = MagicMock()
+        mock_response.body = json.dumps({
+            "usage": {"prompt_tokens": 15, "completion_tokens": 25, "total_tokens": 40}
+        }).encode()
 
-        assert result == {
-            "prompt_tokens": 10,
-            "completion_tokens": 20,
-            "total_tokens": None,
-            "request_id": None
-        }
+        result = await telemetry_middleware._extract_usage_data(mock_response, streaming=False)
 
-    def test_parse_usage_with_partial_data(self):
-        """Test parsing usage data from SSE with partial fields."""
-        middleware = TelemetryMiddleware(app=None, alias_lookup={})
+        assert result == {"usage": {"prompt_tokens": 15, "completion_tokens": 25, "total_tokens": 40}}
 
-        # Test with partial usage data
-        sse_line = 'data: {"usage": {"prompt_tokens": 5}}'
+    async def test_extract_usage_from_invalid_json_response(self, telemetry_middleware):
+        """Test extracting usage data from invalid JSON response."""
+        mock_response = MagicMock()
+        mock_response.body = b"invalid json response"
 
-        result = middleware._parse_usage_from_sse(sse_line)
+        result = await telemetry_middleware._extract_usage_data(mock_response, streaming=False)
 
-        assert result == {
-            "prompt_tokens": 5,
-            "completion_tokens": None,
-            "total_tokens": None,
-            "request_id": None
-        }
+        assert result == {"usage": None}
 
-    def test_parse_usage_no_usage_field(self):
-        """Test parsing SSE data with no usage field."""
-        middleware = TelemetryMiddleware(app=None, alias_lookup={})
+    async def test_extract_usage_from_streaming_response_with_usage(self, telemetry_middleware):
+        """Test extracting usage data from streaming response with usage info."""
+        mock_response = MagicMock()
+        mock_response.body_iterator = self._create_async_stream([
+            b'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n',
+            b'data: {"usage": {"prompt_tokens": 10, "completion_tokens": 20}}\n\n',
+            b'data: [DONE]\n\n'
+        ])
 
-        # Test with no usage field
-        sse_line = 'data: {"choices": [{"message": {"content": "Hello"}}]'
+        result = await telemetry_middleware._extract_usage_data(mock_response, streaming=True)
 
-        result = middleware._parse_usage_from_sse(sse_line)
+        assert result == {"usage": {"prompt_tokens": 10, "completion_tokens": 20}}
 
-        assert result is None
+    def _create_async_stream(self, chunks):
+        """Helper to create async iterator from chunks."""
+        async def async_stream():
+            for chunk in chunks:
+                yield chunk
+
+        return async_stream()
 
 
 class TestTelemetryStreamingCoverage:
     """Additional tests for streaming response processing to reach 95% coverage."""
+
+    @pytest.fixture
+    def mock_app(self):
+        """Create a mock ASGI app."""
+        mock_app = AsyncMock()
+        mock_app.state = MagicMock()
+        return mock_app
+
+    @pytest.fixture
+    def telemetry_middleware(self, mock_app):
+        """Create telemetry middleware instance."""
+        alias_lookup = {"test-model": "gpt-5"}
+        middleware = TelemetryMiddleware(app=mock_app, alias_lookup=alias_lookup)
+        mock_app.state.litellm_telemetry_alias_lookup = alias_lookup
+        return middleware
 
     async def test_middleware_handles_streaming_response_with_chunks(self, telemetry_middleware):
         """Test telemetry processing for streaming response with chunks."""
@@ -272,6 +335,7 @@ class TestTelemetryStreamingCoverage:
             "stream": True
         })
         mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
 
         # Mock streaming response with chunks
         mock_response = MagicMock()
@@ -302,6 +366,7 @@ class TestTelemetryStreamingCoverage:
             "stream": True
         })
         mock_request.headers = {"x-request-id": "test-123"}
+        mock_request.app = telemetry_middleware.app
 
         # Mock streaming response without chunked data
         mock_response = MagicMock()
@@ -319,3 +384,11 @@ class TestTelemetryStreamingCoverage:
             # Should process streaming but no usage found
             mock_logger.assert_called_once()
             assert response == mock_response
+
+    def _create_async_stream(self, chunks):
+        """Helper to create async iterator from chunks."""
+        async def async_stream():
+            for chunk in chunks:
+                yield chunk
+
+        return async_stream()

@@ -15,7 +15,7 @@ def start_proxy(args: argparse.Namespace, config_path: Path) -> None:
 
     # Initialize telemetry logging regardless of model spec source
     try:
-        from .telemetry import instrument_proxy_logging
+        from .telemetry.instrumentation import instrument_proxy_logging
         model_specs = getattr(args, "model_specs", None) or []
         instrument_proxy_logging(model_specs)
     except Exception as e:

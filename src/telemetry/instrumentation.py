@@ -24,11 +24,19 @@ def instrument_proxy_logging(model_specs: List[ModelSpec]) -> None:
     """
     try:
         # Import LiteLLM proxy module
-        from litellm.proxy.proxy_cli import proxy_server
+        from litellm.proxy.proxy_cli import run_server as proxy_server
 
         # Check if already instrumented
-        app = proxy_server.app
-        if getattr(app.state, "_litellm_telemetry_installed", False):
+        # Handle both click command and FastAPI app
+        if hasattr(proxy_server, 'app'):
+            app = proxy_server.app
+        elif hasattr(proxy_server, 'ctx'):
+            # When called from click command context
+            app = proxy_server.ctx.ensure_object(dict).get('app')
+        else:
+            return  # No app available, skip instrumentation
+
+        if hasattr(app, 'state') and getattr(app.state, "_litellm_telemetry_installed", False):
             return  # Already instrumented, skip
 
         # Create alias lookup for telemetry
