@@ -13,6 +13,15 @@ from typing import Any, AsyncIterator, Dict, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+# Import env_bool with absolute path to avoid relative import issues
+try:
+    from ..utils import env_bool  # Relative import when running as part of package
+except ImportError:
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    from utils import env_bool  # Absolute import as fallback
+
 
 class TelemetryMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware for logging chat completion telemetry."""
@@ -30,6 +39,10 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         """Process request and emit telemetry log."""
+        # Check if telemetry is disabled via environment variable
+        if not env_bool("TELEMETRY_ENABLE", True):
+            return await call_next(request)
+
         # Only process chat completion requests
         if request.method != "POST" or request.url.path != "/v1/chat/completions":
             return await call_next(request)

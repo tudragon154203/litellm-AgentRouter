@@ -12,6 +12,15 @@ from .middleware import TelemetryMiddleware
 from .alias_lookup import create_alias_lookup
 from ..config.models import ModelSpec
 
+# Import env_bool with absolute path to avoid relative import issues
+try:
+    from ..utils import env_bool  # Relative import when running as part of package
+except ImportError:
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    from utils import env_bool  # Absolute import as fallback
+
 
 def instrument_proxy_logging(model_specs: List[ModelSpec]) -> None:
     """Instrument LiteLLM proxy with telemetry middleware.
@@ -22,6 +31,12 @@ def instrument_proxy_logging(model_specs: List[ModelSpec]) -> None:
     Args:
         model_specs: List of ModelSpec configurations for alias resolution
     """
+    # Check if telemetry is disabled via environment variable
+    if not env_bool("TELEMETRY_ENABLE", True):
+        logger = logging.getLogger(__name__)
+        logger.info("Telemetry logging is disabled via TELEMETRY_ENABLE=0")
+        return
+
     try:
         # Import LiteLLM proxy module
         from litellm.proxy import proxy_server

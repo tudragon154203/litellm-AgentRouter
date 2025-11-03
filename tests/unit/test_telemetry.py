@@ -584,6 +584,165 @@ class TestTelemetryMiddleware:
         assert "remote_addr" not in logged_data
 
 
+class TestTelemetryEnableEnvVar:
+    """Test TELEMETRY_ENABLE environment variable functionality."""
+
+    def setup_method(self):
+        """Set up test environment."""
+        self.model_specs = [
+            ModelSpec(
+                key="test",
+                alias="test-model",
+                upstream_model="gpt-4"
+            )
+        ]
+        self.alias_lookup = create_alias_lookup(self.model_specs)
+
+        # Mock FastAPI app
+        self.mock_app = MagicMock()
+        self.mock_app.state = SimpleNamespace(litellm_telemetry_alias_lookup=self.alias_lookup)
+
+        # Set up logger capture BEFORE creating middleware
+        self.log_records = []
+        self.test_handler = logging.Handler()
+        self.test_handler.emit = lambda record: self.log_records.append(record)
+
+        self.logger = logging.getLogger("litellm_launcher.telemetry")
+        self.logger.addHandler(self.test_handler)
+        self.logger.setLevel(logging.INFO)
+
+        # Create middleware (will use logger we just configured)
+        self.middleware = TelemetryMiddleware(
+            app=self.mock_app,
+            alias_lookup=self.alias_lookup
+        )
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        self.logger.removeHandler(self.test_handler)
+
+    def create_mock_request(self, method="POST", path="/v1/chat/completions",
+                            headers=None, json_body=None) -> Request:
+        """Create a mock FastAPI Request."""
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "headers": headers or [],
+            "query_string": b"",
+            "client": ("192.168.1.100", 12345),
+            "app": self.mock_app,
+        }
+
+        request = Request(scope)
+        if json_body:
+            request._json = json_body
+        return request
+
+    def create_mock_response(self, status_code=200, json_body=None,
+                             headers=None) -> Response:
+        """Create a mock FastAPI Response."""
+        content = json.dumps(json_body or {}).encode()
+        response = Response(
+            content=content,
+            status_code=status_code,
+            headers=headers or {"content-type": "application/json"}
+        )
+        # Set body attribute for telemetry middleware
+        response.body = content
+        return response
+
+    def test_telemetry_disabled_via_env_var_in_instrumentation(self):
+        """Test that instrumentation skips when TELEMETRY_ENABLE=0."""
+        # Create mock model specs
+        model_specs = [
+            ModelSpec(
+                key="test",
+                alias="test-model",
+                upstream_model="gpt-4"
+            )
+        ]
+
+        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+
+        with patch.dict('os.environ', {'TELEMETRY_ENABLE': '0'}):
+            with patch.dict(sys.modules, module_map, clear=False):
+                instrument_proxy_logging(model_specs)
+
+        # Verify middleware was NOT added when telemetry disabled
+        mock_app.add_middleware.assert_not_called()
+
+    def test_telemetry_disabled_via_env_var_in_middleware(self):
+        """Test that middleware bypasses logging when TELEMETRY_ENABLE=0."""
+        request = self.create_mock_request(
+            json_body={
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "Hello"}]
+            }
+        )
+
+        response = self.create_mock_response(200, {
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+        })
+
+        async def mock_call_next(req):
+            return response
+
+        # Mock env_bool to return False for TELEMETRY_ENABLE
+        with patch('src.telemetry.middleware.env_bool') as mock_env_bool:
+            mock_env_bool.return_value = False
+
+            import asyncio
+            result = asyncio.run(self.middleware.dispatch(request, mock_call_next))
+
+        # Verify response passes through unchanged and no logs emitted
+        assert result is response
+        assert self.log_records == []
+
+    def test_telemetry_enabled_by_default_in_instrumentation(self):
+        """Test that instrumentation works when TELEMETRY_ENABLE is not set."""
+        model_specs = [
+            ModelSpec(
+                key="test",
+                alias="test-model",
+                upstream_model="gpt-4"
+            )
+        ]
+
+        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+
+        # Ensure TELEMETRY_ENABLE is not set
+        with patch.dict('os.environ', {}, clear=True):
+            with patch.dict(sys.modules, module_map, clear=False):
+                instrument_proxy_logging(model_specs)
+
+        # Verify middleware was added when telemetry enabled by default
+        mock_app.add_middleware.assert_called_once()
+        args, kwargs = mock_app.add_middleware.call_args
+        assert args[0] is TelemetryMiddleware
+
+    def test_telemetry_enabled_when_set_to_true_in_instrumentation(self):
+        """Test that instrumentation works when TELEMETRY_ENABLE=1."""
+        model_specs = [
+            ModelSpec(
+                key="test",
+                alias="test-model",
+                upstream_model="gpt-4"
+            )
+        ]
+
+        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+
+        with patch.dict('os.environ', {'TELEMETRY_ENABLE': '1'}):
+            with patch.dict(sys.modules, module_map, clear=False):
+                instrument_proxy_logging(model_specs)
+
+        # Verify middleware was added when telemetry explicitly enabled
+        mock_app.add_middleware.assert_called_once()
+        args, kwargs = mock_app.add_middleware.call_args
+        assert args[0] is TelemetryMiddleware
+
+
 class TestInstrumentProxyLogging:
     """Test proxy logging instrumentation function."""
 
