@@ -1,0 +1,12 @@
+# Ensure LF line endings for shell scripts
+*.sh text eol=lf
+
+# Ensure LF line endings for configuration files
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Handle Dockerfile specifically
+Dockerfile text eol=lf
+
+# Default handling
+* text=auto
