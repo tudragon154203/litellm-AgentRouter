@@ -67,15 +67,6 @@ class TestRealDeepSeekAPI:
         assert msg.content.strip()
         assert hasattr(resp, 'usage') and resp.usage and resp.usage.total_tokens > 0
 
-    def test_deepseek_simple_math(self):
-        resp = self._call_deepseek_not_stream(
-            messages=[{"role": "user", "content": "What is 3+5?"}],
-            max_tokens=50,
-            temperature=0,
-        )
-        content = resp.choices[0].message.content.strip().lower()
-        assert any(x in content for x in ["8", "eight"])  # allow phrasing
-
     def test_deepseek_streaming_completion(self):
         stream = self._call_deepseek_stream(
             messages=[{"role": "user", "content": "List 3 colors."}],

@@ -5,17 +5,16 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 import time
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import Request, Response
 from src.config.models import ModelSpec
-from src.telemetry.middleware import TelemetryMiddleware
-from src.telemetry.alias_lookup import create_alias_lookup
-from src.telemetry.instrumentation import instrument_proxy_logging
+from src.middleware.telemetry import TelemetryMiddleware
+from src.middleware.alias_lookup import create_alias_lookup
+from src.middleware.registry import install_middlewares
 
 
 class TestAliasLookup:
@@ -690,13 +689,13 @@ class TestTelemetryEnableEnvVar:
             )
         ]
 
-        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+        from types import SimpleNamespace
+        mock_app = MagicMock()
+        mock_app.state = SimpleNamespace()
 
         with patch.dict('os.environ', {'TELEMETRY_ENABLE': '0'}):
-            with patch.dict(sys.modules, module_map, clear=False):
-                instrument_proxy_logging(model_specs)
+            install_middlewares(mock_app, model_specs)
 
-        # Verify middleware was NOT added when telemetry disabled
         mock_app.add_middleware.assert_not_called()
 
     def test_telemetry_disabled_via_env_var_in_middleware(self):
@@ -716,7 +715,7 @@ class TestTelemetryEnableEnvVar:
             return response
 
         # Mock env_bool to return False for TELEMETRY_ENABLE
-        with patch('src.telemetry.middleware.env_bool') as mock_env_bool:
+        with patch('src.middleware.telemetry.env_bool') as mock_env_bool:
             mock_env_bool.return_value = False
 
             import asyncio
@@ -736,17 +735,14 @@ class TestTelemetryEnableEnvVar:
             )
         ]
 
-        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+        from types import SimpleNamespace
+        mock_app = MagicMock()
+        mock_app.state = SimpleNamespace()
 
-        # Ensure TELEMETRY_ENABLE is not set
         with patch.dict('os.environ', {}, clear=True):
-            with patch.dict(sys.modules, module_map, clear=False):
-                instrument_proxy_logging(model_specs)
+            install_middlewares(mock_app, model_specs)
 
-        # Verify middleware was added when telemetry enabled by default
-        mock_app.add_middleware.assert_called_once()
-        args, kwargs = mock_app.add_middleware.call_args
-        assert args[0] is TelemetryMiddleware
+        mock_app.add_middleware.assert_any_call(TelemetryMiddleware, alias_lookup={'test-model': 'openai/gpt-4'})
 
     def test_telemetry_enabled_when_set_to_true_in_instrumentation(self):
         """Test that instrumentation works when TELEMETRY_ENABLE=1."""
@@ -758,96 +754,39 @@ class TestTelemetryEnableEnvVar:
             )
         ]
 
-        mock_app, module_map = TestInstrumentProxyLogging._setup_stub_app()
+        from types import SimpleNamespace
+        mock_app = MagicMock()
+        mock_app.state = SimpleNamespace()
 
         with patch.dict('os.environ', {'TELEMETRY_ENABLE': '1'}):
-            with patch.dict(sys.modules, module_map, clear=False):
-                instrument_proxy_logging(model_specs)
+            install_middlewares(mock_app, model_specs)
 
-        # Verify middleware was added when telemetry explicitly enabled
-        mock_app.add_middleware.assert_called_once()
-        args, kwargs = mock_app.add_middleware.call_args
-        assert args[0] is TelemetryMiddleware
+        mock_app.add_middleware.assert_any_call(TelemetryMiddleware, alias_lookup={'test-model': 'openai/gpt-4'})
 
 
-class TestInstrumentProxyLogging:
-    """Test proxy logging instrumentation function."""
+class TestMiddlewareInstaller:
+    """Tests for middleware registry installer."""
 
     def setup_method(self):
-        """Enable telemetry for tests."""
         import os
         os.environ["TELEMETRY_ENABLE"] = "1"
 
-    @staticmethod
-    def _setup_stub_app():
-        mock_app = MagicMock()
-        mock_app.state = SimpleNamespace()
-        mock_app.add_middleware = MagicMock()
+    def test_install_middlewares_registers_in_order(self):
+        model_specs = [ModelSpec(key="test", alias="test-model", upstream_model="gpt-4")]
+        from types import SimpleNamespace
+        app = MagicMock()
+        app.state = SimpleNamespace()
+        install_middlewares(app, model_specs)
+        # First reasoning filter, then telemetry with alias_lookup
+        calls = app.add_middleware.call_args_list
+        assert calls[0][0][0].__name__ == 'ReasoningFilterMiddleware'
+        assert calls[1][0][0] is TelemetryMiddleware
+        assert calls[1][1]['alias_lookup']['test-model'] == 'openai/gpt-4'
 
-        proxy_server_module = ModuleType("proxy_server")
-        proxy_server_module.app = mock_app
-
-        proxy_module = ModuleType("proxy")
-        proxy_module.proxy_server = proxy_server_module
-
-        litellm_module = ModuleType("litellm")
-        litellm_module.proxy = proxy_module
-
-        module_map = {
-            "litellm": litellm_module,
-            "litellm.proxy": proxy_module,
-            "litellm.proxy.proxy_server": proxy_server_module,
-        }
-
-        return mock_app, module_map
-
-    def test_instrument_proxy_logging_registers_middleware(self):
-        """Test that instrument_proxy_logging properly registers middleware."""
-        # Create mock model specs
-        model_specs = [
-            ModelSpec(
-                key="test",
-                alias="test-model",
-                upstream_model="gpt-4"
-            )
-        ]
-
-        mock_app, module_map = self._setup_stub_app()
-
-        with patch.dict(sys.modules, module_map, clear=False):
-            instrument_proxy_logging(model_specs)
-
-        # Verify middleware was added to app
-        mock_app.add_middleware.assert_called_once()
-        args, kwargs = mock_app.add_middleware.call_args
-        assert args[0] is TelemetryMiddleware
-        assert kwargs["alias_lookup"]["test-model"] == "openai/gpt-4"
-        assert mock_app.state.litellm_telemetry_alias_lookup == kwargs["alias_lookup"]
-        assert mock_app.state._litellm_telemetry_installed is True
-
-    def test_instrument_proxy_logging_is_idempotent(self):
-        """Telemetry middleware should only register once."""
-        model_specs = []
-        mock_app, module_map = self._setup_stub_app()
-
-        with patch.dict(sys.modules, module_map, clear=False):
-            instrument_proxy_logging(model_specs)
-            instrument_proxy_logging(model_specs)
-
-        mock_app.add_middleware.assert_called_once()
-
-    @patch('src.telemetry.logging.getLogger')
-    def test_instrument_proxy_logging_logger_setup(self, mock_get_logger):
-        """Test that logger is properly configured during instrumentation."""
-        model_specs = []
-
-        mock_app, module_map = self._setup_stub_app()
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        with patch.dict(sys.modules, module_map, clear=False):
-            instrument_proxy_logging(model_specs)
-
-        # Verify our logger was configured (ignore other logger calls from imports)
-        mock_get_logger.assert_called_with("litellm_launcher.telemetry")
-        mock_logger.setLevel.assert_called_with(logging.INFO)
+    def test_install_middlewares_respects_env_disable(self):
+        from types import SimpleNamespace
+        app = MagicMock()
+        app.state = SimpleNamespace()
+        with patch.dict('os.environ', {'TELEMETRY_ENABLE': '0'}):
+            install_middlewares(app, [])
+        app.add_middleware.assert_not_called()

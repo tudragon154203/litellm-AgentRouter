@@ -51,12 +51,13 @@ class TestModuleExports:
 
     def test_telemetry_module_exports(self):
         """Test that src.telemetry exposes documented entrypoints."""
-        telemetry_module = importlib.import_module("src.telemetry")
+        # telemetry package removed; functions available under src.middleware
+        telemetry_module = importlib.import_module("src.middleware")
         assert telemetry_module is not None
 
         # Test that functions can be imported from telemetry submodules
-        from src.telemetry.alias_lookup import create_alias_lookup
-        from src.telemetry.middleware import TelemetryMiddleware
+        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry import TelemetryMiddleware
 
         # Verify functions are callable
         assert callable(create_alias_lookup), "create_alias_lookup should be callable"
@@ -101,7 +102,7 @@ class TestModuleExports:
         # This test would need to be updated based on actual implementation
         # For now, just verify that imports work as expected
         from src.config.models import ModelSpec
-        from src.telemetry.alias_lookup import create_alias_lookup
+        from src.middleware.alias_lookup import create_alias_lookup
 
         # Should be able to import documented items
         assert ModelSpec is not None

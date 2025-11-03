@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.telemetry.middleware import TelemetryMiddleware
+from src.middleware.telemetry import TelemetryMiddleware
 
 
 def _build_async_stream(chunks):

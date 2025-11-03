@@ -38,7 +38,7 @@ class TestInternalImportGuards:
 
     def test_telemetry_internal_helpers_guarded(self):
         """Test that telemetry module internal helpers are not directly importable."""
-        telemetry_module = importlib.import_module("src.telemetry")
+        telemetry_module = importlib.import_module("src.middleware")
 
         # List of internal helpers that should not be directly importable
         potential_internal_helpers = [
@@ -116,9 +116,9 @@ class TestInternalImportGuards:
         try:
             # Try to import potential internal submodules that should be private
             telemetry_submodules = [
-                "src.telemetry.internal",
-                "src.telemetry._helpers",
-                "src.telemetry.formatters"  # This might be public, depends on design
+                "src.middleware.internal",
+                "src.middleware._helpers",
+                "src.middleware.formatters"  # This might be public, depends on design
             ]
 
             for submodule_path in telemetry_submodules:
@@ -151,8 +151,8 @@ class TestInternalImportGuards:
             ("src.config", "_validate_model_spec"),
 
             # Internal telemetry formatting functions
-            ("src.telemetry", "_format_log_entry"),
-            ("src.telemetry", "_get_request_metadata"),
+            ("src.middleware", "_format_log_entry"),
+            ("src.middleware", "_get_request_metadata"),
 
             # Internal CLI setup functions
             ("src.cli", "_setup_parser"),
@@ -185,7 +185,7 @@ class TestInternalImportGuards:
         assert spec.key == "test"
 
         # Test telemetry public API
-        from src.telemetry.middleware import TelemetryMiddleware
+        from src.middleware.telemetry import TelemetryMiddleware
 
         # Should be able to create middleware
         middleware = TelemetryMiddleware(None, {"test": "openai/gpt-4"})
