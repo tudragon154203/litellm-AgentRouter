@@ -16,7 +16,16 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+def _get_repo_root() -> Path:
+    """Locate the repository root relative to the tests directory."""
+    for parent in Path(__file__).resolve().parents:
+        if parent.name == "tests":
+            return parent.parent
+    raise RuntimeError("Unable to locate repository root from tests directory.")
+
+
+REPO_ROOT = _get_repo_root()
 ENTRYPOINT = REPO_ROOT / "entrypoint.sh"
 
 pytestmark = pytest.mark.skipif(
@@ -113,7 +122,8 @@ def test_env_overrides_host_port_and_master_key(tmp_path: Path):
     assert 'master_key: "sk-local-override"' in config_text
 
     assert "--host 127.0.0.1" in out
-    assert "--port 8088" in out
+    assert "Container listening on port 4000; host publishes 8088 -> 4000" in out
+    assert "--port 4000" in out
 
 
 def test_fails_when_legacy_alias_present(tmp_path: Path):

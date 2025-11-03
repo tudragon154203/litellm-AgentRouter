@@ -1,8 +1,16 @@
 from pathlib import Path
 
 
+def _get_repo_root() -> Path:
+    """Locate the repository root relative to the tests directory."""
+    for parent in Path(__file__).resolve().parents:
+        if parent.name == "tests":
+            return parent.parent
+    raise RuntimeError("Unable to locate repository root from tests directory.")
+
+
 def test_dockerfile_copies_source_before_editable_install():
-    dockerfile = Path(__file__).resolve().parents[2] / "Dockerfile"
+    dockerfile = _get_repo_root() / "Dockerfile"
     content = dockerfile.read_text().splitlines()
 
     try:

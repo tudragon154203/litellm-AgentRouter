@@ -109,7 +109,13 @@ echo ""
 ls -la "${CONFIG_PATH}"
 echo "--- CONFIG FILE END ---"
 
+# Bind inside the container to a fixed internal port to avoid mismatch with published host port.
+# docker-compose maps host ${PORT:-4000} -> container 4000 (see docker-compose.yml:5),
+# so the service must always listen on 4000 internally regardless of host PORT overrides.
 HOST="${LITELLM_HOST:-0.0.0.0}"
-PORT_VALUE="${PORT:-4000}"
+HOST_PORT="${PORT:-4000}"
+CONTAINER_PORT=4000
 
-exec python -m src.main --config "${CONFIG_PATH}" --host "${HOST}" --port "${PORT_VALUE}"
+echo "Container listening on port ${CONTAINER_PORT}; host publishes ${HOST_PORT} -> ${CONTAINER_PORT}"
+
+exec python -m src.main --config "${CONFIG_PATH}" --host "${HOST}" --port "${CONTAINER_PORT}"
