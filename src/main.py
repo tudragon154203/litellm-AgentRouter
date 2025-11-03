@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sys
 from typing import NoReturn
+from pathlib import Path
 
 from .cli import parse_args
 from .config.parsing import prepare_config
@@ -46,7 +47,11 @@ def main(argv: list[str] | None = None) -> NoReturn:
 
     # Handle --print-config flag: print config and exit
     if getattr(args, 'print_config', False) is True:
-        print(config_data)
+        if is_generated:
+            print(config_data)
+        else:
+            config_path = Path(config_data)
+            print(config_path.read_text(encoding="utf-8"))
         sys.exit(0)
         return
 

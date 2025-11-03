@@ -185,6 +185,31 @@ class TestPrepareConfig:
         with pytest.raises(SystemExit):
             prepare_config(args)
 
+    def test_prepare_config_returns_path_for_existing_config(self, tmp_path):
+        """Existing config file should be returned as a path with is_generated False."""
+        config_path = tmp_path / "litellm-config.yaml"
+        config_content = "model_list:\n  - model_name: external\n"
+        config_path.write_text(config_content)
+
+        args = SimpleNamespace(
+            config=config_path,
+            model_specs=None,
+            upstream_base=None,
+            upstream_key_env=None,
+            master_key="unused",
+            no_master_key=False,
+            drop_params=True,
+            streaming=True,
+            print_config=False,
+        )
+
+        config_data, is_generated = prepare_config(args)
+        assert is_generated is False
+        assert config_data == config_path
+
+        with create_temp_config_if_needed(config_data, is_generated) as resolved_path:
+            assert resolved_path == config_path
+
 
 class TestTemporaryConfig:
     """Tests for temporary config helper."""

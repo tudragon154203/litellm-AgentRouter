@@ -19,7 +19,7 @@ if [[ -z "${PROXY_MODEL_KEYS:-}" ]]; then
 fi
 
 CONFIG_PATH="/app/generated-config.yaml"
-cat > "${CONFIG_PATH}" << EOF
+cat > "${CONFIG_PATH}" << 'EOF'
 model_list:
 EOF
 
@@ -106,6 +106,8 @@ sed -e 's/\(api_key: "\)[^"]*/\1***MASKED***"/' \
     -e 's/\(master_key: "\)[^"]*/\1***MASKED***"/' \
     "${CONFIG_PATH}"
 echo ""
+ls -la "${CONFIG_PATH}"
+echo "--- CONFIG FILE END ---"
 
 HOST="${LITELLM_HOST:-0.0.0.0}"
 PORT_VALUE="${PORT:-4000}"

@@ -122,8 +122,7 @@ def prepare_config(args) -> tuple[str, bool]:
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {args.config}")
 
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return f.read(), False
+        return config_path, False
 
     # Otherwise generate config from model specs or environment
     model_specs = getattr(args, 'model_specs', None)
