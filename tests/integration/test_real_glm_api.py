@@ -114,6 +114,7 @@ class TestRealGLMAPI:
         assert chunks > 0
         assert ''.join(parts).strip()
 
+    @pytest.mark.skip(reason="GLM API content filtering - temporarily disabled")
     def test_glm_reasoning_task(self):
         """Test GLM on a reasoning task."""
         resp = self._call_glm_not_stream(

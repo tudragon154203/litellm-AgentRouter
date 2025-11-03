@@ -85,6 +85,9 @@ class TestTelemetryMiddleware:
 
     def setup_method(self):
         """Set up test environment."""
+        # Enable telemetry for tests
+        import os
+        os.environ["TELEMETRY_ENABLE"] = "1"
         self.model_specs = [
             ModelSpec(
                 key="test",
@@ -101,17 +104,23 @@ class TestTelemetryMiddleware:
         # Set up logger capture BEFORE creating middleware
         self.log_records = []
         self.test_handler = logging.Handler()
+        self.test_handler.setLevel(logging.DEBUG)  # Capture all levels
         self.test_handler.emit = lambda record: self.log_records.append(record)
 
         self.logger = logging.getLogger("litellm_launcher.telemetry")
         self.logger.addHandler(self.test_handler)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)  # Set to DEBUG to capture everything
+        # Ensure the logger propagates to parent handlers
+        self.logger.propagate = False
 
         # Create middleware (will use the logger we just configured)
         self.middleware = TelemetryMiddleware(
             app=self.mock_app,
             alias_lookup=self.alias_lookup
         )
+
+        # Debug: Check if middleware logger is correctly configured
+        assert self.middleware.logger == self.logger
 
     def teardown_method(self):
         """Clean up test environment."""
@@ -120,19 +129,37 @@ class TestTelemetryMiddleware:
     def create_mock_request(self, method="POST", path="/v1/chat/completions",
                             headers=None, json_body=None) -> Request:
         """Create a mock FastAPI Request."""
+        headers = headers or []
+        if json_body:
+            # Convert JSON body to bytes and add content-type header
+            body_bytes = json.dumps(json_body).encode('utf-8')
+            headers.append((b'content-type', b'application/json'))
+            headers.append((b'content-length', str(len(body_bytes)).encode('utf-8')))
+        else:
+            body_bytes = b''
+
         scope = {
             "type": "http",
             "method": method,
             "path": path,
-            "headers": headers or [],
+            "headers": headers,
             "query_string": b"",
             "client": ("192.168.1.100", 12345),
             "app": self.mock_app,
         }
 
         request = Request(scope)
+
+        # Mock receive method for JSON body
         if json_body:
-            request._json = json_body
+            async def mock_receive():
+                return {
+                    "type": "http.request",
+                    "body": body_bytes,
+                    "more_body": False
+                }
+            request._receive = mock_receive
+
         return request
 
     def create_mock_response(self, status_code=200, json_body=None,
@@ -745,6 +772,11 @@ class TestTelemetryEnableEnvVar:
 
 class TestInstrumentProxyLogging:
     """Test proxy logging instrumentation function."""
+
+    def setup_method(self):
+        """Enable telemetry for tests."""
+        import os
+        os.environ["TELEMETRY_ENABLE"] = "1"
 
     @staticmethod
     def _setup_stub_app():
