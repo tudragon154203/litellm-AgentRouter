@@ -110,6 +110,10 @@ def proxy_server(tmp_path_factory: pytest.TempPathFactory):
             "LITELLM_HOST": "127.0.0.1",
             "SKIP_PREREQ_CHECK": "1",
             "DISABLE_TELEMETRY": "1",
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONUTF8": "1",
+            "LC_ALL": "en_US.UTF-8",
+            "LANG": "en_US.UTF-8",
         }
     )
 
