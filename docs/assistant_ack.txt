@@ -1,0 +1,6 @@
+Acknowledgement:
+- I will not edit any existing code unless you add the files to the chat first.
+- For each future request, I will list only the minimal set of files most likely to need edits, then stop and wait for you to add them.
+- Please share the relevant files when ready so I can provide precise SEARCH/REPLACE blocks.
+
+Awaiting your next request.
