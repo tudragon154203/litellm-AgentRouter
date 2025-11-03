@@ -679,7 +679,7 @@ class TestTelemetryEnableEnvVar:
         return response
 
     def test_telemetry_disabled_via_env_var_in_instrumentation(self):
-        """Test that instrumentation skips when TELEMETRY_ENABLE=0."""
+        """Test that instrumentation skips telemetry when TELEMETRY_ENABLE=0."""
         # Create mock model specs
         model_specs = [
             ModelSpec(
@@ -696,7 +696,13 @@ class TestTelemetryEnableEnvVar:
         with patch.dict('os.environ', {'TELEMETRY_ENABLE': '0'}):
             install_middlewares(mock_app, model_specs)
 
-        mock_app.add_middleware.assert_not_called()
+        # ReasoningFilterMiddleware should always be installed, but not TelemetryMiddleware
+        calls = mock_app.add_middleware.call_args_list
+        assert len(calls) == 1
+        assert calls[0][0][0].__name__ == 'ReasoningFilterMiddleware'
+        # TelemetryMiddleware should not be in the calls
+        telemetry_calls = [call for call in calls if call[0][0].__name__ == 'TelemetryMiddleware']
+        assert len(telemetry_calls) == 0
 
     def test_telemetry_disabled_via_env_var_in_middleware(self):
         """Test that middleware bypasses logging when TELEMETRY_ENABLE=0."""
@@ -789,4 +795,7 @@ class TestMiddlewareInstaller:
         app.state = SimpleNamespace()
         with patch.dict('os.environ', {'TELEMETRY_ENABLE': '0'}):
             install_middlewares(app, [])
-        app.add_middleware.assert_not_called()
+        # ReasoningFilterMiddleware should always be installed, but not TelemetryMiddleware
+        calls = app.add_middleware.call_args_list
+        assert len(calls) == 1
+        assert calls[0][0][0].__name__ == 'ReasoningFilterMiddleware'

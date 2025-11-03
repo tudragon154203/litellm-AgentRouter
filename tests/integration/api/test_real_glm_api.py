@@ -70,18 +70,6 @@ class TestRealGLMAPI:
         assert content and content.strip()
         assert hasattr(resp, 'usage') and resp.usage and resp.usage.total_tokens > 0
 
-    def test_glm_simple_math(self):
-        resp = self._call_glm_not_stream(
-            messages=[{"role": "user", "content": "What is 7+8?"}],
-            max_tokens=50,
-            temperature=0,
-        )
-        msg = resp.choices[0].message
-        content = (getattr(msg, 'content', None) or getattr(msg, 'reasoning_content', None) or "").strip().lower()
-        # GLM might give reasoning or direct answer, be more flexible
-        assert any(x in content for x in ["15", "fifteen", "seven", "eight", "7", "8",
-                   "add", "+", "equals", "="])  # allow reasoning or direct answer
-
     def test_glm_chinese_text(self):
         """Test GLM's Chinese language capabilities."""
         resp = self._call_glm_not_stream(

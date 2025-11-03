@@ -19,10 +19,14 @@ except ImportError:  # pragma: no cover
 
 
 def install_middlewares(app, model_specs: List[ModelSpec]) -> None:
-    if not env_bool("TELEMETRY_ENABLE", True):
-        logging.getLogger(__name__).info("Telemetry disabled; middlewares not installed")
-        return
-    alias_lookup = create_alias_lookup(model_specs) if model_specs else {}
+    # Always install ReasoningFilterMiddleware to drop unsupported 'reasoning' param
     app.add_middleware(ReasoningFilterMiddleware)
+
+    # Telemetry is optional and controlled via env
+    if not env_bool("TELEMETRY_ENABLE", True):
+        logging.getLogger(__name__).info("Telemetry disabled; skipping telemetry middleware")
+        return
+
+    alias_lookup = create_alias_lookup(model_specs) if model_specs else {}
     app.add_middleware(TelemetryMiddleware, alias_lookup=alias_lookup)
     app.state.litellm_telemetry_alias_lookup = alias_lookup
