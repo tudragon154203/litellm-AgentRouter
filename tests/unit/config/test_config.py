@@ -242,3 +242,125 @@ def test_load_model_specs_empty_args():
     assert result == []
     result2 = load_model_specs_from_cli([])
     assert result2 == []
+
+
+class TestGrokCodeFast1Integration:
+    """Tests for Grok Code Fast-1 model integration."""
+
+    def test_grok_code_fast_1_in_model_caps(self):
+        """Verify grok-code-fast-1 is present in MODEL_CAPS."""
+        from src.config.models import MODEL_CAPS
+        assert "grok-code-fast-1" in MODEL_CAPS
+
+    def test_grok_code_fast_1_supports_reasoning(self):
+        """Verify grok-code-fast-1 supports reasoning capability."""
+        from src.config.models import get_model_capabilities
+        caps = get_model_capabilities("grok-code-fast-1")
+        assert caps["supports_reasoning"] is True
+
+    def test_render_config_with_grok_code_fast_1(self):
+        """Verify config rendering works correctly for grok-code-fast-1."""
+        spec = make_spec(
+            key="grok",
+            alias="grok-code-fast-1",
+            upstream_model="grok-code-fast-1",
+            reasoning_effort="medium",
+        )
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://api.x.ai/v1",
+            global_upstream_key_env="XAI_API_KEY",
+            master_key="sk-test",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        assert parsed["model_list"][0]["model_name"] == "grok-code-fast-1"
+        assert parsed["model_list"][0]["litellm_params"]["model"] == "openai/grok-code-fast-1"
+        assert parsed["model_list"][0]["litellm_params"]["reasoning_effort"] == "medium"
+
+    def test_grok_config_from_environment(self, monkeypatch):
+        """Verify Grok can be configured via environment variables."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "grok")
+        monkeypatch.setenv("MODEL_GROK_UPSTREAM_MODEL", "grok-code-fast-1")
+        monkeypatch.setenv("MODEL_GROK_REASONING_EFFORT", "high")
+        monkeypatch.setenv("XAI_API_KEY", "sk-xai-test")
+
+        specs = load_model_specs_from_env()
+        assert len(specs) == 1
+        assert specs[0].alias == "grok-code-fast-1"
+        assert specs[0].upstream_model == "grok-code-fast-1"
+        assert specs[0].reasoning_effort == "high"
+
+
+class TestGLM46Integration:
+    """Tests for GLM-4.6 model integration."""
+
+    def test_glm_4_6_in_model_caps(self):
+        """Verify glm-4.6 is present in MODEL_CAPS."""
+        from src.config.models import MODEL_CAPS
+        assert "glm-4.6" in MODEL_CAPS
+
+    def test_glm_4_6_does_not_support_reasoning(self):
+        """Verify glm-4.6 reasoning capability is correctly False."""
+        from src.config.models import get_model_capabilities
+        caps = get_model_capabilities("glm-4.6")
+        assert caps["supports_reasoning"] is False
+
+    def test_render_config_with_glm_4_6(self):
+        """Verify config rendering works correctly for glm-4.6."""
+        spec = make_spec(
+            key="glm",
+            alias="glm-4.6",
+            upstream_model="glm-4.6",
+            reasoning_effort=None,  # GLM doesn't support reasoning
+        )
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://open.bigmodel.cn/api/paas/v4",
+            global_upstream_key_env="GLM_API_KEY",
+            master_key="sk-test",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        assert parsed["model_list"][0]["model_name"] == "glm-4.6"
+        assert parsed["model_list"][0]["litellm_params"]["model"] == "openai/glm-4.6"
+        # Verify reasoning_effort is not present since GLM doesn't support it
+        assert "reasoning_effort" not in parsed["model_list"][0]["litellm_params"]
+
+    def test_glm_config_from_environment(self, monkeypatch):
+        """Verify GLM can be configured via environment variables."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "glm")
+        monkeypatch.setenv("MODEL_GLM_UPSTREAM_MODEL", "glm-4.6")
+        monkeypatch.setenv("GLM_API_KEY", "sk-glm-test")
+
+        specs = load_model_specs_from_env()
+        assert len(specs) == 1
+        assert specs[0].alias == "glm-4.6"
+        assert specs[0].upstream_model == "glm-4.6"
+        # GLM gets default reasoning_effort of "none" which will be filtered out during rendering
+        assert specs[0].reasoning_effort == "none"
+
+    def test_glm_reasoning_effort_filtered_in_config(self, monkeypatch):
+        """Verify that reasoning_effort is filtered out for GLM-4.6 even if specified."""
+        spec = make_spec(
+            key="glm",
+            alias="glm-4.6",
+            upstream_model="glm-4.6",
+            reasoning_effort="high",  # Should be filtered out
+        )
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://open.bigmodel.cn/api/paas/v4",
+            global_upstream_key_env="GLM_API_KEY",
+            master_key="sk-test",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        # Even though reasoning_effort was specified, it should be filtered out
+        assert "reasoning_effort" not in parsed["model_list"][0]["litellm_params"]

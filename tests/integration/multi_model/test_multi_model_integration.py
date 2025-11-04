@@ -290,3 +290,137 @@ print(get_startup_message(args))
         litellm_settings_idx = next(i for i, line in enumerate(config_lines) if "litellm_settings:" in line)
         assert litellm_settings_idx > gpt5_line_idx
         assert litellm_settings_idx > deepseek_line_idx
+
+    def test_print_config_with_glm_4_6(self):
+        """Test --print-config with GLM-4.6 in multi-model configuration."""
+        env_vars = {
+            "PROXY_MODEL_KEYS": "gpt5,glm",
+            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
+            "MODEL_GPT5_REASONING_EFFORT": "medium",
+            "MODEL_GLM_UPSTREAM_MODEL": "glm-4.6",
+            "OPENAI_BASE_URL": "https://agentrouter.org/v1",
+            "OPENAI_API_KEY": "sk-test-key",
+            "GLM_API_KEY": "sk-glm-test",
+            "LITELLM_MASTER_KEY": "sk-master-test",
+            "SKIP_PREREQ_CHECK": "1",
+            "DISABLE_TELEMETRY": "1",
+        }
+
+        result = subprocess.run(
+            [
+                "python", "-m", "src.main",
+                "--print-config"
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, **env_vars},
+        )
+
+        assert result.returncode == 0
+        config_text = result.stdout
+
+        # Check that both models are present
+        assert 'model_name: "gpt-5"' in config_text
+        assert 'model_name: "glm-4.6"' in config_text
+
+        # Check upstream models
+        assert 'model: "openai/gpt-5"' in config_text
+        assert 'model: "openai/glm-4.6"' in config_text
+
+        # Check GPT-5 has reasoning effort
+        assert 'reasoning_effort: "medium"' in config_text
+
+        # Verify GLM does NOT have reasoning_effort in its config
+        lines = config_text.split('\n')
+        glm_section_start = None
+        for i, line in enumerate(lines):
+            if 'model_name: "glm-4.6"' in line:
+                glm_section_start = i
+                break
+
+        assert glm_section_start is not None, "GLM-4.6 model not found in config"
+
+        # Check the next ~20 lines in GLM section for reasoning_effort
+        glm_has_reasoning = False
+        for i in range(glm_section_start, min(glm_section_start + 20, len(lines))):
+            # Stop if we hit another model or settings section
+            if i > glm_section_start and ('model_name:' in lines[i] or 'litellm_settings:' in lines[i]):
+                break
+            if 'reasoning_effort:' in lines[i]:
+                glm_has_reasoning = True
+                break
+
+        assert not glm_has_reasoning, "GLM-4.6 should not have reasoning_effort parameter"
+
+    def test_glm_reasoning_effort_filtering(self):
+        """Test that reasoning_effort is filtered out for GLM-4.6 even if specified."""
+        result = subprocess.run(
+            [
+                "python", "-m", "src.main",
+                "--model-spec", "key=glm,alias=glm-4.6,upstream=glm-4.6,reasoning=high",
+                "--upstream-base", "https://open.bigmodel.cn/api/paas/v4",
+                "--master-key", "sk-test",
+                "--print-config"
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "SKIP_PREREQ_CHECK": "1"}
+        )
+
+        assert result.returncode == 0
+        config_text = result.stdout
+
+        # Verify GLM model is present
+        assert 'model_name: "glm-4.6"' in config_text
+
+        # Verify reasoning_effort is NOT present in GLM section
+        lines = config_text.split('\n')
+        glm_section_start = None
+        for i, line in enumerate(lines):
+            if 'model_name: "glm-4.6"' in line:
+                glm_section_start = i
+                break
+
+        assert glm_section_start is not None
+
+        # Check GLM section for reasoning_effort (should not be there)
+        for i in range(glm_section_start, min(glm_section_start + 20, len(lines))):
+            if i > glm_section_start and ('model_name:' in lines[i] or 'litellm_settings:' in lines[i]):
+                break
+            assert 'reasoning_effort:' not in lines[i], \
+                "GLM-4.6 should not have reasoning_effort even when explicitly specified"
+
+    def test_startup_message_with_glm(self):
+        """Test startup message includes GLM-4.6."""
+        env_vars = {
+            "PROXY_MODEL_KEYS": "gpt5,glm",
+            "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
+            "MODEL_GLM_UPSTREAM_MODEL": "glm-4.6",
+        }
+
+        result = subprocess.run(
+            [
+                "python", "-c",
+                """
+import sys
+sys.path.insert(0, 'src')
+from src.main import get_startup_message
+from src.cli import parse_args
+from src.config.parsing import prepare_config
+
+args = parse_args([])
+prepare_config(args)
+print(get_startup_message(args))
+"""
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, **env_vars}
+        )
+
+        assert result.returncode == 0
+        startup_msg = result.stdout.strip()
+
+        assert "with 2 model(s):" in startup_msg
+        assert "gpt-5 (gpt-5)" in startup_msg
+        assert "glm-4.6 (glm-4.6)" in startup_msg

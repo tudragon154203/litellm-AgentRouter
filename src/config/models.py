@@ -75,6 +75,7 @@ MODEL_CAPS: Dict[str, Dict[str, Any]] = {
     "deepseek-v3.2": {"supports_reasoning": True},
     "gpt-5": {"supports_reasoning": True},
     "glm-4.6": {"supports_reasoning": False},
+    "grok-code-fast-1": {"supports_reasoning": True},
     # Add more models as needed
 }
 

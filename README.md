@@ -1,6 +1,6 @@
 # LiteLLM Proxy
 
-A lightweight proxy that provides an OpenAI-compatible API endpoint for multiple models including GPT-5 and DeepSeek v3.2.
+A lightweight proxy that provides an OpenAI-compatible API endpoint for multiple models including GPT-5, DeepSeek v3.2, Grok Code Fast-1, and GLM-4.6.
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ The proxy starts on `http://localhost:4000`.
 
 ```bash
 # .env file
-PROXY_MODEL_KEYS=gpt5,deepseek
+PROXY_MODEL_KEYS=gpt5,deepseek,grok,glm
 
 # GPT-5 configuration
 MODEL_GPT5_UPSTREAM_MODEL=gpt-5
@@ -30,6 +30,14 @@ MODEL_GPT5_REASONING_EFFORT=medium
 # DeepSeek v3.2 configuration
 MODEL_DEEPSEEK_UPSTREAM_MODEL=deepseek-v3.2
 MODEL_DEEPSEEK_REASONING_EFFORT=medium
+
+# Grok Code Fast-1 configuration
+MODEL_GROK_UPSTREAM_MODEL=grok-code-fast-1
+MODEL_GROK_REASONING_EFFORT=high
+
+# GLM-4.6 configuration
+MODEL_GLM_UPSTREAM_MODEL=glm-4.6
+# Note: GLM-4.6 does not support reasoning_effort parameter
 
 # Global settings
 OPENAI_BASE_URL=https://agentrouter.org/v1
@@ -42,7 +50,9 @@ LITELLM_MASTER_KEY=sk-local-master
 ```bash
 python -m src.main \
   --model-spec "key=gpt5,alias=gpt-5,upstream=gpt-5,reasoning=medium" \
-  --model-spec "key=deepseek,alias=deepseek-v3.2,upstream=deepseek-v3.2"
+  --model-spec "key=deepseek,alias=deepseek-v3.2,upstream=deepseek-v3.2" \
+  --model-spec "key=grok,alias=grok-code-fast-1,upstream=grok-code-fast-1,reasoning=high" \
+  --model-spec "key=glm,alias=glm-4.6,upstream=glm-4.6"
 ```
 
 ## Client Usage

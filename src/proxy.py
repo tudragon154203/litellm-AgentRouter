@@ -11,6 +11,19 @@ from pathlib import Path
 
 def start_proxy(args: argparse.Namespace, config_path: Path) -> None:
     """Start the LiteLLM proxy with the given configuration."""
+    import sys
+    import os
+
+    # Fix Windows UTF-8 encoding for LiteLLM banner display
+    if sys.platform == 'win32':
+        import codecs
+        # Only wrap stdout/stderr if they have a buffer attribute (not already wrapped)
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
+        if hasattr(sys.stderr, 'buffer'):
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, errors='replace')
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+
     from litellm.proxy.proxy_cli import run_server
 
     # Initialize telemetry logging regardless of model spec source
