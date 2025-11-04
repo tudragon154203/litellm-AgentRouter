@@ -53,3 +53,18 @@ def test_present_reasoning_logs_debug_once(app, caplog):
     assert res.status_code == 200
     logged = [rec for rec in caplog.records if "dropped_param" in rec.message]
     assert len(logged) == 1
+
+
+def test_reasoning_with_client_request_id(app, caplog):
+    """Test reasoning filtering with client request ID - covers line 50."""
+    client = TestClient(app)
+    with caplog.at_level("DEBUG", logger="litellm_launcher.filter"):
+        res = client.post(
+            "/v1/chat/completions",
+            json={"model": "gpt-5", "messages": [], "reasoning": "test"},
+            headers={"x-request-id": "req-123"}
+        )
+    assert res.status_code == 200
+    logged = [rec for rec in caplog.records if "client_request_id" in rec.message]
+    assert len(logged) == 1
+    assert "req-123" in logged[0].message

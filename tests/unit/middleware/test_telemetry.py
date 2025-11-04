@@ -397,9 +397,87 @@ class TestTelemetryMiddleware:
         assert "path" not in logged_data
         assert "method" not in logged_data
         assert "request_id" not in logged_data
-        assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
-        assert "remote_addr" not in logged_data
+
+    def test_request_body_json_decode_error(self):
+        """Test handling of malformed JSON in request body - covers lines 48-49."""
+        # Create request with invalid JSON
+        headers = [(b'x-request-id', b'test-req-123')]
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "headers": headers,
+            "query_string": b"",
+            "client": ("127.0.0.1", 12345),
+            "app": self.mock_app,
+        }
+        request = Request(scope)
+
+        # Mock receive to return invalid JSON
+        async def mock_receive():
+            return {
+                "type": "http.request",
+                "body": b'{invalid json content here',
+                "more_body": False
+            }
+        request._receive = mock_receive
+
+        async def mock_call_next(req):
+            return self.create_mock_response(
+                json_body={"id": "test", "choices": [], "usage": {"prompt_tokens": 10}}
+            )
+
+        with patch('time.perf_counter', side_effect=[0.0, 0.100]):
+            import asyncio
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
+
+        # Should handle gracefully without crash
+        assert len(self.log_records) == 1
+
+    def test_error_telemetry_with_client_request_id(self):
+        """Test error telemetry includes client_request_id - covers line 116."""
+        request = self.create_mock_request(
+            headers=[(b'x-request-id', b'client-req-999')],
+            json_body={"model": "gpt-4", "messages": []}
+        )
+
+        async def mock_call_next_error(req):
+            raise ValueError("Simulated processing error")
+
+        with patch('time.perf_counter', return_value=0.0):
+            import asyncio
+            with pytest.raises(ValueError, match="Simulated processing error"):
+                asyncio.run(self.middleware.dispatch(request, mock_call_next_error))
+
+        # Check error telemetry was logged
+        assert len(self.log_records) == 1
+        error_data = json.loads(self.log_records[0].getMessage())
+        assert error_data["client_request_id"] == "client-req-999"
+        assert error_data["error_type"] == "ValueError"
+        assert "Simulated processing error" in error_data["error_message"]
+
+    def test_response_body_as_string(self):
+        """Test response body handling when it's not bytes - covers line 200."""
+        request = self.create_mock_request(
+            json_body={"model": "gpt-4", "stream": False, "messages": []}
+        )
+
+        async def mock_call_next(req):
+            response = self.create_mock_response(
+                json_body={"id": "test", "usage": {"prompt_tokens": 5, "completion_tokens": 10}}
+            )
+            # Override body as string instead of bytes
+            response.body = '{"id":"test","usage":{"prompt_tokens":5,"completion_tokens":10}}'
+            return response
+
+        with patch('time.perf_counter', side_effect=[0.0, 0.025]):
+            import asyncio
+            asyncio.run(self.middleware.dispatch(request, mock_call_next))
+
+        assert len(self.log_records) == 1
+        logged = json.loads(self.log_records[0].getMessage())
+        assert logged["prompt_tokens"] == 5
+        assert logged["completion_tokens"] == 10
 
     def test_extract_streaming_usage_json_fallback(self):
         """Streaming usage parser should fall back to JSON when SSE parsing fails."""

@@ -432,3 +432,37 @@ class TestMain:
 
             # Ensure no other calls to sys.exit were made
             assert mock_exit.call_count == 1
+
+
+def test_main_print_config_from_file(monkeypatch, tmp_path):
+    """Test main with --print-config reading from file - covers main.py:53-54, 56."""
+    from src.main import main
+
+    # Create a config file
+    config_file = tmp_path / "test_config.yaml"
+    config_file.write_text("test: config")
+
+    # Mock sys.argv
+    test_args = [
+        "litellm-launcher",
+        "--config", str(config_file),
+        "--print-config"
+    ]
+    monkeypatch.setattr(sys, "argv", test_args)
+
+    # Mock sys.exit to capture it
+    exit_called = []
+
+    def mock_exit(code):
+        exit_called.append(code)
+        raise SystemExit(code)
+
+    monkeypatch.setattr(sys, "exit", mock_exit)
+
+    # Run main and expect SystemExit
+    try:
+        main()
+    except SystemExit as e:
+        assert e.code == 0
+
+    assert exit_called == [0]

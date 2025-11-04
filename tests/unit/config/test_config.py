@@ -223,3 +223,22 @@ class TestTemporaryConfig:
             assert path.read_text() == config_text
 
         assert not path.exists()
+
+
+def test_model_spec_post_init():
+    """Test __post_init__ method for legacy compatibility - covers models.py:70."""
+    from src.config.models import ModelSpec
+    spec = ModelSpec(key="test", alias="test-alias", upstream_model="gpt-4")
+    # Call __post_init__ explicitly for coverage
+    spec.__post_init__()
+    # Should complete without error
+    assert spec.upstream_model == "gpt-4"
+
+
+def test_load_model_specs_empty_args():
+    """Test load_model_specs_from_cli with no arguments - covers parsing.py:98."""
+    from src.config.parsing import load_model_specs_from_cli
+    result = load_model_specs_from_cli(None)
+    assert result == []
+    result2 = load_model_specs_from_cli([])
+    assert result2 == []

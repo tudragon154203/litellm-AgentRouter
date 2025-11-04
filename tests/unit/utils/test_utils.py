@@ -303,3 +303,32 @@ class TestValidatePrereqs:
         # In practice, this function works correctly - we can test the success case
         # and assume the failure case would behave as expected
         pass
+
+
+def test_load_env_skip_dotenv():
+    """Test load_env returns early when SKIP_DOTENV is set - covers utils.py:30."""
+    import os
+    from src.utils import load_dotenv_files as load_env
+
+    # Set SKIP_DOTENV
+    old_val = os.environ.get("SKIP_DOTENV")
+    try:
+        os.environ["SKIP_DOTENV"] = "1"
+        # Should return without loading any files
+        load_env()  # Should not raise, just return early
+    finally:
+        if old_val is None:
+            os.environ.pop("SKIP_DOTENV", None)
+        else:
+            os.environ["SKIP_DOTENV"] = old_val
+
+
+def test_create_temp_config_type_error():
+    """Test create_temp_config raises TypeError for non-string - covers utils.py:77."""
+    from src.utils import create_temp_config_if_needed
+    import pytest
+
+    # Pass non-string config_data with is_generated=True
+    with pytest.raises(TypeError, match="Generated configuration data must be a string"):
+        with create_temp_config_if_needed(123, is_generated=True):  # type: ignore
+            pass
