@@ -54,7 +54,7 @@ def load_model_specs_from_env() -> List[ModelSpec]:
     model_specs: List[ModelSpec] = []
 
     # Global defaults
-    global_base = os.getenv("OPENAI_API_BASE", "https://agentrouter.org/v1")
+    global_base = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
     global_key_env = "OPENAI_API_KEY"
 
     for key in keys:

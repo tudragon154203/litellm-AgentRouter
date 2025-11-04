@@ -74,7 +74,7 @@ for raw_key in "${RAW_KEYS[@]}"; do
   - model_name: "${alias}"
     litellm_params:
       model: "${model_line}"
-      api_base: "${OPENAI_API_BASE:-https://agentrouter.org/v1}"
+      api_base: "${OPENAI_BASE_URL:-https://agentrouter.org/v1}"
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
       headers:

@@ -52,7 +52,7 @@
 
 #### Environment Variable Redesign
 - Introduce `PROXY_MODEL_KEYS` (comma-separated identifiers) to declare active models; each identifier maps to namespaced variables (`MODEL_<KEY>_UPSTREAM_MODEL`, optional `MODEL_<KEY>_REASONING_EFFORT`), with aliases derived automatically.
-- Support `OPENAI_API_BASE` and `OPENAI_API_KEY` global fallbacks when per-model values are omitted.
+- Support `OPENAI_BASE_URL` and `OPENAI_API_KEY` global fallbacks when per-model values are omitted.
 - Drop legacy single-model environment variables; require multi-model schema even for one-model deployments (with docs highlighting minimal single-entry example).
 
 ### Documentation
@@ -63,7 +63,7 @@
 
 ### Testing
 - Unit tests:
-  - Update `tests/unit/test_cli.py` to drop coverage of retired single-model env vars and add cases for `PROXY_MODEL_KEYS`, per-model alias/upstream parsing, and global `OPENAI_API_BASE`/`OPENAI_API_KEY` defaults.
+  - Update `tests/unit/test_cli.py` to drop coverage of retired single-model env vars and add cases for `PROXY_MODEL_KEYS`, per-model alias/upstream parsing, and global `OPENAI_BASE_URL`/`OPENAI_API_KEY` defaults.
   - Extend config rendering tests to assert that:
     - GPT-5 spec inherits API base/key from globals while retaining reasoning effort.
     - DeepSeek spec omits reasoning effort unless explicitly set to `none`.

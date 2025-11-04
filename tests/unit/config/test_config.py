@@ -89,7 +89,7 @@ class TestLoadModelSpecsFromEnv:
     def test_load_model_specs_from_env_success(self, monkeypatch):
         """Load two models from environment variables."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
-        monkeypatch.setenv("OPENAI_API_BASE", "https://agentrouter.org/v1")
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")

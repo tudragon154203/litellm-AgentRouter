@@ -18,7 +18,7 @@ class TestMultiModelIntegration:
             "MODEL_GPT5_REASONING_EFFORT": "medium",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
             "MODEL_DEEPSEEK_REASONING_EFFORT": "low",
-            "OPENAI_API_BASE": "https://agentrouter.org/v1",
+            "OPENAI_BASE_URL": "https://agentrouter.org/v1",
             "OPENAI_API_KEY": "sk-test-key",
             "LITELLM_MASTER_KEY": "sk-master-test",
             "SKIP_PREREQ_CHECK": "1",
@@ -61,7 +61,7 @@ class TestMultiModelIntegration:
             "PROXY_MODEL_KEYS": "primary",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
             "MODEL_PRIMARY_REASONING_EFFORT": "high",
-            "OPENAI_API_BASE": "https://custom.api.com",
+            "OPENAI_BASE_URL": "https://custom.api.com",
             "OPENAI_API_KEY": "sk-custom-key",
             "SKIP_PREREQ_CHECK": "1",
         }
@@ -259,7 +259,7 @@ print(get_startup_message(args))
             "PROXY_MODEL_KEYS": "gpt5,deepseek",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
-            "OPENAI_API_BASE": "https://agentrouter.org/v1",
+            "OPENAI_BASE_URL": "https://agentrouter.org/v1",
             "OPENAI_API_KEY": "sk-test",
         }
 
