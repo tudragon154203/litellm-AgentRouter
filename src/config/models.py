@@ -74,10 +74,11 @@ class ModelSpec:
 MODEL_CAPS: Dict[str, Dict[str, Any]] = {
     "deepseek-v3.2": {"supports_reasoning": True},
     "gpt-5": {"supports_reasoning": True},
+    "glm-4.6": {"supports_reasoning": False},
     # Add more models as needed
 }
 
 
 def get_model_capabilities(upstream_model: str) -> Dict[str, Any]:
     """Get capabilities for a model, defaulting to unknown model capabilities."""
-    return MODEL_CAPS.get(upstream_model, {"supports_reasoning": True})  # Default to supporting reasoning
+    return MODEL_CAPS.get(upstream_model, {"supports_reasoning": True})  # Default to not supporting reasoning
