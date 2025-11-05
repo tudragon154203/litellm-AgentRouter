@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.utils import (
     attach_signal_handlers,
+    build_user_agent,
     env_bool,
     quote,
     temporary_config,
@@ -87,6 +89,33 @@ class TestQuote:
         result = quote("héllo wörld")
         # JSON uses unicode escape sequences
         assert '"h\\u00e9llo w\\u00f6rld"' == result
+
+
+class TestBuildUserAgent:
+    """Tests for build_user_agent."""
+
+    def test_build_user_agent_defaults(self):
+        """Uses default version and architecture when env vars missing."""
+        with patch.dict(os.environ, {}, clear=True):
+            expected = f"QwenCode/0.0.14 ({sys.platform}; unknown)"
+            assert build_user_agent() == expected
+
+    def test_build_user_agent_uses_env_overrides(self):
+        """Reads CLI_VERSION and PROCESSOR_ARCHITECTURE from environment."""
+        env = {
+            "CLI_VERSION": "1.2.3",
+            "PROCESSOR_ARCHITECTURE": "arm64",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            expected = f"QwenCode/1.2.3 ({sys.platform}; arm64)"
+            assert build_user_agent() == expected
+
+    def test_build_user_agent_explicit_version_argument(self):
+        """Explicit version argument overrides environment variable."""
+        env = {"CLI_VERSION": "should-not-appear"}
+        with patch.dict(os.environ, env, clear=True):
+            expected = f"QwenCode/9.9.9 ({sys.platform}; unknown)"
+            assert build_user_agent("9.9.9") == expected
 
 
 class TestTemporaryConfig:

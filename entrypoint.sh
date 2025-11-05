@@ -5,6 +5,14 @@ set -e
 
 echo "Starting LiteLLM proxy with configuration from environment variables..."
 
+# Align LiteLLM user agent with the current runtime platform (matches demo scripts).
+USER_AGENT="$(python - <<'PY'
+from src.utils import build_user_agent
+
+print(build_user_agent(), end="")
+PY
+)"
+
 # Reject legacy alias variables
 for var in $(env | grep -E "MODEL_.*_ALIAS=" | cut -d= -f1); do
     echo "ERROR: Legacy environment variable '$var' detected."
@@ -78,7 +86,7 @@ for raw_key in "${RAW_KEYS[@]}"; do
       api_key: "${OPENAI_API_KEY}"
       custom_llm_provider: "openai"
       headers:
-        "User-Agent": "QwenCode/0.0.14 (win32; unknown)"
+        "User-Agent": "${USER_AGENT}"
         "Content-Type": "application/json"
 EOF
 

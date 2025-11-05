@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Dict, List
 
-from ..utils import quote
+from ..utils import build_user_agent, quote
 from . import models
 from .models import ModelSpec
 
@@ -31,7 +31,7 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
         f"      api_base: {quote(upstream_base)}",
         f"      custom_llm_provider: {quote('openai')}",
         "      headers:",
-        f"        \"User-Agent\": {quote('QwenCode/0.0.14 (win32; unknown)')}",
+        f"        \"User-Agent\": {quote(build_user_agent())}",
         f"        \"Content-Type\": {quote('application/json')}",
     ]
 

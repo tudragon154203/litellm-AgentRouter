@@ -28,6 +28,13 @@ def quote(value: str) -> str:
     return json.dumps(value)
 
 
+def build_user_agent(cli_version: str | None = None) -> str:
+    """Return the canonical CLI user agent string for upstream requests."""
+    version = cli_version or os.getenv("CLI_VERSION", "0.0.14")
+    architecture = os.getenv("PROCESSOR_ARCHITECTURE", "unknown")
+    return f"QwenCode/{version} ({sys.platform}; {architecture})"
+
+
 @contextmanager
 def temporary_config(config_data: str | Path, is_generated: bool = True) -> Iterator[Path]:
     """Yield a config path, creating a temporary file when needed.
@@ -61,6 +68,7 @@ def temporary_config(config_data: str | Path, is_generated: bool = True) -> Iter
 
 def attach_signal_handlers() -> None:
     """Attach signal handlers for graceful shutdown."""
+
     def handle_signal(signum, frame):  # pragma: no cover - runtime behaviour
         signame = signal.Signals(signum).name
         print(f"\nReceived {signame}, shutting down LiteLLM proxy...", file=sys.stderr)
