@@ -3,9 +3,6 @@
 
 from __future__ import annotations
 
-import os
-import sys
-
 import pytest
 
 from src.config.config import runtime_config

@@ -3,12 +3,10 @@
 
 from __future__ import annotations
 
-import os
-import sys
-
 import pytest
 
 from src.config.config import runtime_config
+from src.utils import build_user_agent
 
 litellm = pytest.importorskip("litellm")
 
@@ -34,7 +32,7 @@ class TestRealDeepSeekAPI:
             'stream': False,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)
@@ -49,7 +47,7 @@ class TestRealDeepSeekAPI:
             'stream': True,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)

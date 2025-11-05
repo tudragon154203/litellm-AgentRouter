@@ -4,10 +4,9 @@
 from __future__ import annotations
 from src.config.config import runtime_config
 
-import os
-import sys
-
 import pytest
+
+from src.utils import build_user_agent
 
 litellm = pytest.importorskip("litellm")
 
@@ -43,7 +42,7 @@ class TestRealGPT5API:
             'stream': False,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         default_params.update(kwargs)
@@ -60,7 +59,7 @@ class TestRealGPT5API:
             'stream': True,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         default_params.update(kwargs)

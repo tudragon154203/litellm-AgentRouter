@@ -4,10 +4,9 @@
 from __future__ import annotations
 from src.config.config import runtime_config
 
-import os
-import sys
-
 import pytest
+
+from src.utils import build_user_agent
 
 litellm = pytest.importorskip("litellm")
 
@@ -33,7 +32,7 @@ class TestRealGLMAPI:
             'stream': False,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)
@@ -48,7 +47,7 @@ class TestRealGLMAPI:
             'stream': True,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"QwenCode/0.0.14 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)
