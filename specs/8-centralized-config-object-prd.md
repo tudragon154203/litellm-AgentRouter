@@ -34,7 +34,8 @@ The LiteLLM launcher currently exposes `load_dotenv_files()` in `src/utils.py`, 
    - Static analysis (`rg "load_dotenv_files"`) should return only the central module and its tests after refactor.
 
 4. **Documentation & Examples**:
-   - Update `README.md` and `.env.example` to describe the new config entry point, including how tests should consume it.
+  - Update `README.md` and `.env.example` to describe the new config entry point, including how tests should consume it.
+  - Call out that `load_dotenv_files()` is being removed without backwards compatibility; downstream consumers must adopt the new config API.
    - Document how `SKIP_DOTENV` interacts with the config object.
    - Describe extension guidelines (where to add new keys, validation rules).
 
@@ -69,7 +70,7 @@ The LiteLLM launcher currently exposes `load_dotenv_files()` in `src/utils.py`, 
     - `MissingSettingError`: raised when required keys are missing.
     - `runtime_config`: eagerly constructed singleton used by runtime code.
   - Update `src/config/__init__.py` to re-export `runtime_config` for ergonomic imports while avoiding circular imports.
-  - Keep legacy `src.utils.load_dotenv_files` as a thin compatibility wrapper that calls `runtime_config.ensure_loaded()`; mark it with a deprecation docstring to steer callers away.
+  - Remove `src.utils.load_dotenv_files` entirely; callers must switch to `runtime_config.ensure_loaded()` or the new accessor API.
 
 - **RuntimeConfig Responsibilities**
   - On initialization, compute dotenv search paths (`Path(__file__).resolve().parent.parent / ".env"` and `Path.cwd() / ".env"`) matching the current loader behavior (observed in `src/utils.py`).
@@ -94,7 +95,7 @@ The LiteLLM launcher currently exposes `load_dotenv_files()` in `src/utils.py`, 
   - Extend `tests/unit/package/test_module_exports.py` to assert that `src.config.config` exports `runtime_config` and that `src.utils.load_dotenv_files` is available but marked deprecated.
 
 - **Migration Strategy**
-  - `rg "load_dotenv_files"` after refactor should only hit the compatibility shim and its tests. Add a regression assertion in `tests/unit/package/test_module_exports.py` to guard against new direct usages.
+  - `rg "load_dotenv_files"` after refactor should return no hits; add a regression assertion in `tests/unit/package/test_module_exports.py` to guard against reintroducing it.
   - Document the new import path (`from src.config.config import runtime_config`) in `README.md` and `.env.example`.
   - Ensure `RuntimeConfig.ensure_loaded()` is safe under multiprocessing/threading scenarios used by integration tests (idempotent check + threading lock if contention appears during implementation).
 
@@ -123,5 +124,16 @@ pytest --cov=src --cov-report=term-missing
 
 ## Follow-Up Opportunities
 - Collect all configuration defaults and validation logic into a schema-driven system (e.g. `pydantic` or dataclasses).
-- Introduce CLI subcommand (`python -m src.config.env dump`) to print effective configuration for debugging.
+- Introduce CLI subcommand (`python -m src.config.config dump`) to print effective configuration for debugging.
 - Evaluate removing the legacy `.env` loader entirely once all consumers rely on the new interface.
+
+## TODO Checklist
+- [ ] Draft failing unit tests in `tests/unit/config/test_config_runtime.py` covering `.env` loading, `SKIP_DOTENV`, accessors, and overrides.
+- [ ] Update `tests/unit/startup/test_main.py` to expect `runtime_config.ensure_loaded` usage.
+- [ ] Add pytest fixture helpers for config overrides (e.g. in `tests/conftest.py`).
+- [ ] Implement `RuntimeConfig` and singleton in `src/config/config.py`.
+- [ ] Remove `load_dotenv_files` from `src/utils.py` and eliminate related imports.
+- [ ] Refactor `src/main.py` and other runtime modules to use the new config API.
+- [ ] Update integration tests to rely on config fixtures instead of `load_dotenv_files`.
+- [ ] Refresh documentation (`README.md`, `.env.example`) noting the lack of backwards compatibility for `load_dotenv_files`.
+- [ ] Ensure linting and full test suite pass; confirm coverage ≥95%.
