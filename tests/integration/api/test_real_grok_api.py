@@ -2,12 +2,14 @@
 """Real integration tests that make actual Grok Code Fast-1 API calls via litellm."""
 
 from __future__ import annotations
-from src.config.config import runtime_config
 
 import os
 import sys
 
 import pytest
+
+from src.config.config import runtime_config
+from src.utils import build_user_agent
 
 litellm = pytest.importorskip("litellm")
 
@@ -33,7 +35,7 @@ class TestRealGrokAPI:
             'stream': False,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"LiteLLMProxy/0.1.0 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)
@@ -48,7 +50,7 @@ class TestRealGrokAPI:
             'stream': True,
             'headers': {
                 "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": f"LiteLLMProxy/0.1.0 ({sys.platform}; {os.getenv('PROCESSOR_ARCHITECTURE', 'unknown')})"
+                "User-Agent": build_user_agent()
             }
         }
         params.update(kwargs)
