@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import os
 import signal
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +12,6 @@ import pytest
 from src.utils import (
     attach_signal_handlers,
     env_bool,
-    load_dotenv_files,
     quote,
     temporary_config,
     validate_prereqs,
@@ -61,117 +59,6 @@ class TestEnvBool:
             # Test that explicit False overrides default True
             with patch.dict(os.environ, {"UNSET_VAR": "false"}):
                 assert env_bool("UNSET_VAR", default=True) is False
-
-
-class TestLoadDotenvFiles:
-    """Test cases for load_dotenv_files function."""
-
-    def test_load_dotenv_files_with_valid_env(self, tmp_path):
-        """Test loading valid .env files."""
-        env_file = tmp_path / ".env"
-        env_file.write_text("TEST_KEY=test_value\nANOTHER_KEY=another value\n# Comment\n\nEMPTY_KEY=\n")
-
-        with patch("src.utils.Path") as mock_path_class:
-            # Mock both script_dir and cwd paths
-            mock_script_dir = tmp_path
-            mock_cwd = tmp_path
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            with patch.dict(os.environ, {}, clear=True):
-                load_dotenv_files()
-                assert os.environ["TEST_KEY"] == "test_value"
-                assert os.environ["ANOTHER_KEY"] == "another value"
-                assert os.environ.get("EMPTY_KEY") == ""  # empty values are kept as empty strings
-
-    def test_load_dotenv_files_skips_existing_env_vars(self, tmp_path):
-        """Test that existing environment variables are not overwritten."""
-        env_file = tmp_path / ".env"
-        env_file.write_text("EXISTING_KEY=new_value\nNEW_KEY=added_value\n")
-
-        with patch("src.utils.Path") as mock_path_class:
-            mock_script_dir = tmp_path
-            mock_cwd = tmp_path
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            with patch.dict(os.environ, {"EXISTING_KEY": "original_value"}):
-                load_dotenv_files()
-                assert os.environ["EXISTING_KEY"] == "original_value"
-                assert os.environ["NEW_KEY"] == "added_value"
-
-    def test_load_dotenv_files_handles_invalid_lines(self, tmp_path):
-        """Test that invalid lines in .env files are handled gracefully."""
-        env_file = tmp_path / ".env"
-        env_file.write_text("VALID_KEY=valid_value\nINVALID_LINE\nNO_EQUALS\n=NO_KEY\nVALID2=value2\n")
-
-        with patch("src.utils.Path") as mock_path_class:
-            mock_script_dir = tmp_path
-            mock_cwd = tmp_path
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            with patch.dict(os.environ, {}, clear=True):
-                load_dotenv_files()
-                assert os.environ["VALID_KEY"] == "valid_value"
-                assert os.environ["VALID2"] == "value2"
-                assert "NO_EQUALS" not in os.environ  # lines with no = are skipped entirely
-
-    def test_load_dotenv_files_handles_file_read_error(self, tmp_path):
-        """Test that file read errors are handled gracefully."""
-
-        with patch("src.utils.Path") as mock_path_class:
-            mock_script_dir = tmp_path
-            mock_cwd = tmp_path
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            # Mock Path.read_text to raise an exception
-            mock_env_path = MagicMock()
-            mock_env_path.is_file.return_value = True
-            mock_env_path.read_text.side_effect = IOError("Permission denied")
-
-            with patch.object(Path, "__truediv__", return_value=mock_env_path):
-                with patch("builtins.print") as mock_print:
-                    load_dotenv_files()
-                    mock_print.assert_called()
-
-    def test_load_dotenv_files_no_duplicate_loading(self, tmp_path):
-        """Test that the same .env file is not loaded twice."""
-        env_file = tmp_path / ".env"
-        env_file.write_text("TEST_KEY=test_value\n")
-
-        with patch("src.utils.Path") as mock_path_class:
-            # Make script_dir and cwd the same to test duplicate prevention
-            mock_script_dir = tmp_path
-            mock_cwd = tmp_path
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            with patch.dict(os.environ, {}, clear=True):
-                load_dotenv_files()
-                # Should only load once, but still have the value
-                assert os.environ["TEST_KEY"] == "test_value"
-
-    def test_load_dotenv_files_nonexistent_file(self):
-        """Test load_dotenv_files when .env file doesn't exist (covers line 30)."""
-        with patch("src.utils.Path") as mock_path_class:
-            # Mock both paths to not exist
-            mock_script_dir = Path("/nonexistent")
-            mock_cwd = Path("/nonexistent")
-            mock_path_class.return_value.resolve.return_value.parent.parent = mock_script_dir
-            mock_path_class.cwd.return_value = mock_cwd
-
-            # Mock .env file that doesn't exist
-            mock_env_path = MagicMock()
-            mock_env_path.is_file.return_value = False
-            mock_path_class.return_value = mock_env_path
-
-            with patch.dict(os.environ, {}, clear=True):
-                load_dotenv_files()
-
-            # Should not add any environment variables
-                assert len(os.environ) == 0
 
 
 class TestQuote:
@@ -303,24 +190,6 @@ class TestValidatePrereqs:
         # In practice, this function works correctly - we can test the success case
         # and assume the failure case would behave as expected
         pass
-
-
-def test_load_env_skip_dotenv():
-    """Test load_env returns early when SKIP_DOTENV is set - covers utils.py:30."""
-    import os
-    from src.utils import load_dotenv_files as load_env
-
-    # Set SKIP_DOTENV
-    old_val = os.environ.get("SKIP_DOTENV")
-    try:
-        os.environ["SKIP_DOTENV"] = "1"
-        # Should return without loading any files
-        load_env()  # Should not raise, just return early
-    finally:
-        if old_val is None:
-            os.environ.pop("SKIP_DOTENV", None)
-        else:
-            os.environ["SKIP_DOTENV"] = old_val
 
 
 def test_create_temp_config_type_error():

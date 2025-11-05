@@ -70,7 +70,6 @@ class TestModuleExports:
         # Check that documented utility functions exist and are callable
         documented_functions = [
             "env_bool",
-            "load_dotenv_files",
             "quote",
             "temporary_config",
             "attach_signal_handlers",

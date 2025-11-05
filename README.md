@@ -55,6 +55,8 @@ python -m src.main \
   --model-spec "key=glm,alias=glm-4.6,upstream=glm-4.6"
 ```
 
+**Note for Real API Integration Tests**: Integration tests that make actual API calls use `os.getenv()` directly after `runtime_config.ensure_loaded()` to access real API keys from the environment. This is intentional - they test against live services and need the actual environment variables.
+
 ## Client Usage
 
 Configure OpenAI-compatible clients with:

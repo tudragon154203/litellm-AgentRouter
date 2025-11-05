@@ -2,7 +2,7 @@
 """Real integration tests that make actual GPT-5 API calls."""
 
 from __future__ import annotations
-from src.utils import load_dotenv_files
+from src.config.config import runtime_config
 
 import os
 import sys
@@ -18,9 +18,9 @@ class TestRealGPT5API:
     @classmethod
     def setup_class(cls):
         """Setup for all tests - load environment variables."""
-        load_dotenv_files()
-        cls.api_key = os.getenv("OPENAI_API_KEY")
-        cls.base_url = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        runtime_config.ensure_loaded()
+        cls.api_key = runtime_config.get_str("OPENAI_API_KEY")
+        cls.base_url = runtime_config.get_str("OPENAI_BASE_URL", "https://agentrouter.org/v1")
 
         if not cls.api_key:
             pytest.skip("OPENAI_API_KEY environment variable not set")

@@ -23,39 +23,6 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def load_dotenv_files() -> None:
-    """Load key-value pairs from .env files into the current environment."""
-    # Skip loading .env files if SKIP_DOTENV is set
-    if os.getenv("SKIP_DOTENV"):
-        return
-
-    def load_file(path: Path) -> None:
-        if not path.is_file():
-            return
-        try:
-            for raw_line in path.read_text().splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                key = key.strip()
-                value = value.strip().strip("'\"")
-                if key and key not in os.environ:
-                    os.environ[key] = value
-        except Exception as exc:
-            print(f"WARNING: failed to load {path}: {exc}", file=sys.stderr)
-
-    script_dir = Path(__file__).resolve().parent.parent
-    cwd = Path.cwd()
-    seen: set[Path] = set()
-    for candidate in (script_dir / ".env", cwd / ".env"):
-        if candidate not in seen:
-            seen.add(candidate)
-            load_file(candidate)
-
-
 def quote(value: str) -> str:
     """Return a JSON-escaped string that is also valid YAML."""
     return json.dumps(value)

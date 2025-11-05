@@ -30,7 +30,7 @@ class TestMainGuard:
             })()
 
             with patch("src.main.parse_args", return_value=mock_args), \
-                    patch("src.main.load_dotenv_files"), \
+                    patch("src.config.config.runtime_config.ensure_loaded"), \
                     patch("src.main.validate_prereqs"), \
                     patch("src.main.attach_signal_handlers"), \
                     patch("src.main.prepare_config", return_value=("config", True)), \

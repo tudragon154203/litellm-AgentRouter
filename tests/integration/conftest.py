@@ -13,7 +13,7 @@ from textwrap import dedent
 import pytest
 import requests
 
-from src.utils import load_dotenv_files
+from src.config.config import runtime_config
 
 _PROXY_MASTER_KEY = "sk-integration-master"
 _MOCK_RESPONSE_TEXT = "Hello from LiteLLM integration test"
@@ -54,7 +54,7 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(scope="session", autouse=True)
 def load_test_environment():
     """Load environment variables for all tests."""
-    load_dotenv_files()
+    runtime_config.ensure_loaded()
 
 
 @pytest.fixture

@@ -22,7 +22,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_with_generated_config(
         self,
         mock_load_dotenv,
@@ -77,7 +77,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_with_existing_config(
         self,
         mock_load_dotenv,
@@ -134,7 +134,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_with_none_argv(
         self,
         mock_load_dotenv,
@@ -173,7 +173,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_execution_order(
         self,
         mock_load_dotenv,
@@ -226,7 +226,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_propagates_exceptions(
         self,
         mock_load_dotenv,
@@ -253,7 +253,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_with_different_host_port_combinations(
         self,
         mock_load_dotenv,
@@ -302,7 +302,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_context_manager_cleanup(
         self,
         mock_load_dotenv,
@@ -335,7 +335,7 @@ class TestMain:
     @patch("src.main.attach_signal_handlers")
     @patch("src.main.parse_args")
     @patch("src.main.validate_prereqs")
-    @patch("src.main.load_dotenv_files")
+    @patch("src.config.config.runtime_config.ensure_loaded")
     def test_main_type_annotations(
         self,
         mock_load_dotenv,
@@ -386,7 +386,7 @@ class TestMain:
         mock_args.alias = "test-model"
 
         with patch("src.main.parse_args", return_value=mock_args), \
-                patch("src.main.load_dotenv_files"), \
+                patch("src.config.config.runtime_config.ensure_loaded"), \
                 patch("src.main.validate_prereqs"), \
                 patch("src.main.attach_signal_handlers"), \
                 patch("src.main.prepare_config", return_value=("config", True)), \
@@ -412,7 +412,7 @@ class TestMain:
         mock_args.alias = "test-model"
 
         with patch("src.main.parse_args", return_value=mock_args), \
-                patch("src.main.load_dotenv_files"), \
+                patch("src.config.config.runtime_config.ensure_loaded"), \
                 patch("src.main.validate_prereqs"), \
                 patch("src.main.attach_signal_handlers"), \
                 patch("src.main.prepare_config", return_value=("config", True)), \

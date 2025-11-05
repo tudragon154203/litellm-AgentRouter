@@ -2,12 +2,13 @@
 """Real integration tests that make actual DeepSeek v3.2 API calls via litellm."""
 
 from __future__ import annotations
-from src.utils import load_dotenv_files
 
 import os
 import sys
 
 import pytest
+
+from src.config.config import runtime_config
 
 litellm = pytest.importorskip("litellm")
 
@@ -15,9 +16,9 @@ litellm = pytest.importorskip("litellm")
 class TestRealDeepSeekAPI:
     @classmethod
     def setup_class(cls):
-        load_dotenv_files()
-        cls.api_key = os.getenv("OPENAI_API_KEY")
-        cls.base_url = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        runtime_config.ensure_loaded()
+        cls.api_key = runtime_config.get_str("OPENAI_API_KEY")
+        cls.base_url = runtime_config.get_str("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         if not cls.api_key:
             pytest.skip("OPENAI_API_KEY environment variable not set")
         litellm.drop_params = True
