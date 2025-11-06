@@ -41,7 +41,10 @@ class TestLoggerSink:
         record = self.log_records[0]
         assert record.levelno == logging.INFO
         logged = json.loads(record.getMessage())
-        assert logged["event_type"] == "ResponseCompleted"
+        # event_type is removed from output, status_code is first
+        assert "event_type" not in logged
+        assert logged["status_code"] == 200
+        assert logged["duration_s"] == 0.5  # rounded to 2 decimals
         assert logged["usage"]["total_tokens"] == 100
         assert logged["usage"]["prompt_tokens"] == 40
 
@@ -105,7 +108,10 @@ class TestLoggerSink:
 
         sink.emit(event)
 
-        # Should still log something (fallback message)
+        # Should still log something (the convert function handles objects with __dict__)
         assert len(self.log_records) == 1
         message = self.log_records[0].getMessage()
-        assert "Failed to serialize event" in message or "ResponseCompleted" in message
+        # The object gets converted to dict, event_type is removed
+        logged = json.loads(message)
+        assert "bad_field" in logged
+        assert "event_type" not in logged

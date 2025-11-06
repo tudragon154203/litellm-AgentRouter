@@ -66,18 +66,7 @@ def to_usage_tokens(usage_dict: dict | None) -> UsageTokens | None:
 
 async def replayable_stream(async_iterator: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
     """Wrap a stream to be replayable: collects all chunks then yields them back."""
-    collected: list[bytes] = []
-
-    async def collector():
-        async for chunk in async_iterator:
-            collected.append(chunk)
-            yield chunk  # yield original chunk as it comes in
-
-    # First pass: yield original chunks
-    async for chunk in collector():
+    # Simply pass through the stream for now
+    # Buffering/replay logic can be added later if needed
+    async for chunk in async_iterator:
         yield chunk
-
-    # Note: Replaying semantics depend on Starlette/ASGI expectations.
-    # For PRD correctness, we buffer and then yield from buffer.
-    # The collector above already yields during collection.
-    # We'll implement a two-pass variant later if needed.

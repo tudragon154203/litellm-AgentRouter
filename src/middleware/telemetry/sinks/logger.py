@@ -50,6 +50,28 @@ class LoggerSink(TelemetrySink):
                 return value
 
             payload = convert(event)
+
+            # Reformat the payload: remove event_type, move status_code up, round duration_s
+            if isinstance(payload, dict):
+                # Remove event_type
+                payload.pop("event_type", None)
+
+                # Round duration_s to 2 decimal places
+                if "duration_s" in payload and isinstance(payload["duration_s"], (int, float)):
+                    payload["duration_s"] = round(payload["duration_s"], 2)
+
+                # Reorder: status_code first, then timestamp, duration_s, then rest
+                ordered = {}
+                if "status_code" in payload:
+                    ordered["status_code"] = payload.pop("status_code")
+                if "timestamp" in payload:
+                    ordered["timestamp"] = payload.pop("timestamp")
+                if "duration_s" in payload:
+                    ordered["duration_s"] = payload.pop("duration_s")
+                # Add remaining fields
+                ordered.update(payload)
+                payload = ordered
+
             serialized = json.dumps(payload, separators=(",", ":"))
             self.logger.info(serialized)
         except Exception as e:

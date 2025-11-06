@@ -12,7 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import TelemetryConfig
 from .request_context import apply_reasoning_policy
-from .usage import parse_usage_from_response, parse_usage_from_stream_chunk, to_usage_tokens, replayable_stream
+from .usage import parse_usage_from_response, parse_usage_from_stream_chunk, to_usage_tokens
 
 
 class TelemetryMiddleware(BaseHTTPMiddleware):
@@ -202,23 +202,26 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         chunks = []
 
         async def consume(iterator: AsyncIterator[bytes]) -> None:
-            usage_dict: dict | None = None
+            nonlocal usage_dict
             async for chunk in iterator:
                 chunks.append(chunk)
                 if usage_dict is None:
                     chunk_text = chunk.decode("utf-8", errors="ignore") if isinstance(chunk, bytes) else str(chunk)
                     usage_dict = parse_usage_from_stream_chunk(chunk_text)
 
+        async def replay_chunks():
+            """Async generator to replay collected chunks."""
+            for chunk in chunks:
+                yield chunk
+
         try:
             if hasattr(response, "body_iterator"):
                 await consume(response.body_iterator)
-                # Make stream replayable
-                gen = (chunk for chunk in chunks)
-                response.body_iterator = replayable_stream(gen)
+                # Make stream replayable with async generator
+                response.body_iterator = replay_chunks()
             elif hasattr(response, "__aiter__"):
                 await consume(response)
-                gen = (chunk for chunk in chunks)
-                response = replayable_stream(gen)
+                response = replay_chunks()
         except Exception:
             # If extraction fails, return response unchanged
             pass
@@ -231,8 +234,32 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         parse_error = False
 
         try:
-            response_body = getattr(response, "body", None)
-            if response_body:
+            # For Starlette Response objects, we need to read the body_iterator
+            if hasattr(response, "body_iterator"):
+                chunks = []
+                async for chunk in response.body_iterator:
+                    chunks.append(chunk)
+
+                # Reconstruct the body
+                response_body = b"".join(chunks)
+
+                # Make the response replayable by creating a new iterator
+                async def replay_body():
+                    yield response_body
+
+                response.body_iterator = replay_body()
+
+                # Parse the body for usage
+                if response_body:
+                    response_text = response_body.decode("utf-8", errors="ignore")
+                    try:
+                        response_json = json.loads(response_text)
+                        usage_dict = parse_usage_from_response(response_json)
+                    except json.JSONDecodeError:
+                        parse_error = True
+            elif hasattr(response, "body"):
+                # Fallback for direct body attribute
+                response_body = response.body
                 if isinstance(response_body, bytes):
                     response_text = response_body.decode("utf-8", errors="ignore")
                 else:
