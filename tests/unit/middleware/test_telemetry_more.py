@@ -12,7 +12,8 @@ from src.middleware.telemetry import TelemetryMiddleware
 
 
 @pytest.fixture
-def middleware():
+def middleware(monkeypatch):
+    monkeypatch.setenv("TELEMETRY_ENABLE", "1")
     app = AsyncMock()
     app.state = MagicMock()
     alias_lookup = {"m": "openai/m"}

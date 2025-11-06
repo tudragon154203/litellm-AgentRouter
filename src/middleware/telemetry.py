@@ -12,6 +12,8 @@ from typing import Any, AsyncIterator, Dict, Tuple
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .constants import OPENAI_REASONING_FILTER_PATHS
+
 try:
     from ..utils import env_bool
 except ImportError:  # pragma: no cover
@@ -30,8 +32,11 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         if not env_bool("TELEMETRY_ENABLE", True):
             return await call_next(request)
-        if request.method != "POST" or request.url.path != "/v1/chat/completions":
+        if request.method != "POST":
             return await call_next(request)
+
+        request_path = getattr(getattr(request, "url", None), "path", "")
+        filterable_path = request_path in OPENAI_REASONING_FILTER_PATHS
 
         start_time = time.perf_counter()
         remote_addr = self._get_remote_addr(request)
@@ -40,21 +45,22 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         # Pre-process body: drop top-level 'reasoning' if present
         dropped_reasoning = False
         try:
-            raw_body = await request.body()
-            if raw_body:
-                try:
-                    maybe_json = raw_body.decode("utf-8", errors="ignore")
-                    parsed = json.loads(maybe_json)
-                except json.JSONDecodeError:
-                    parsed = None
-                if isinstance(parsed, dict) and "reasoning" in parsed:
-                    parsed.pop("reasoning", None)
-                    new_body = json.dumps(parsed, separators=(",", ":")).encode("utf-8")
+            if filterable_path:
+                raw_body = await request.body()
+                if raw_body:
                     try:
-                        request._body = new_body  # type: ignore[attr-defined]
-                        dropped_reasoning = True
-                    except Exception:
-                        pass
+                        maybe_json = raw_body.decode("utf-8", errors="ignore")
+                        parsed = json.loads(maybe_json)
+                    except json.JSONDecodeError:
+                        parsed = None
+                    if isinstance(parsed, dict) and "reasoning" in parsed:
+                        parsed.pop("reasoning", None)
+                        new_body = json.dumps(parsed, separators=(",", ":")).encode("utf-8")
+                        try:
+                            request._body = new_body  # type: ignore[attr-defined]
+                            dropped_reasoning = True
+                        except Exception:
+                            pass
         except Exception:
             pass
 

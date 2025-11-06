@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Middleware to strip top-level 'reasoning' parameter from chat completion requests.
+Middleware to strip top-level 'reasoning' parameter from OpenAI-style requests.
 """
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from typing import Any, Awaitable, Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .constants import OPENAI_REASONING_FILTER_PATHS
+
 
 class ReasoningFilterMiddleware(BaseHTTPMiddleware):
     """FastAPI middleware to remove top-level 'reasoning' from request body."""
@@ -20,8 +22,8 @@ class ReasoningFilterMiddleware(BaseHTTPMiddleware):
         self.logger = logging.getLogger("litellm_launcher.filter")
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        # Only filter chat completion POSTs
-        if request.method == "POST" and request.url.path == "/v1/chat/completions":
+        # Only filter the supported OpenAI-compatible POST endpoints
+        if request.method == "POST" and request.url.path in OPENAI_REASONING_FILTER_PATHS:
             client_request_id = request.headers.get("x-request-id")
             try:
                 body_bytes = await request.body()
