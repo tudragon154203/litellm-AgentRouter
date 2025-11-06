@@ -5,7 +5,7 @@ from typing import List
 
 from .telemetry.middleware import TelemetryMiddleware
 from .alias_lookup import create_alias_lookup
-from .reasoning_filter import ReasoningFilterMiddleware
+from .reasoning_filter.middleware import ReasoningFilterMiddleware
 from ..config.models import ModelSpec
 
 

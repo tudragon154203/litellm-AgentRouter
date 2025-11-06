@@ -2,7 +2,7 @@ import pytest
 from starlette.testclient import TestClient
 from fastapi import FastAPI, Request
 
-from src.middleware.reasoning_filter import ReasoningFilterMiddleware
+from src.middleware.reasoning_filter.middleware import ReasoningFilterMiddleware
 
 
 @pytest.fixture()

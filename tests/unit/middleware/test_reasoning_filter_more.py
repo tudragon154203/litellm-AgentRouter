@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from starlette.testclient import TestClient
 
-from src.middleware.reasoning_filter import ReasoningFilterMiddleware
+from src.middleware.reasoning_filter.middleware import ReasoningFilterMiddleware
 
 
 def build_app_echo_json():
