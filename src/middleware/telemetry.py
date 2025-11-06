@@ -96,14 +96,14 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             end_time = time.perf_counter()
-            duration_ms = (end_time - start_time) * 1000
+            duration_s = (end_time - start_time)
             telemetry_data, processed_response = await self._extract_response_telemetry(
                 response=response,
                 request_body=request_body,
                 model_alias=model_alias,
                 upstream_model=upstream_model,
                 streaming=streaming,
-                duration_ms=duration_ms,
+                duration_s=duration_s,
                 remote_addr=remote_addr,
                 client_request_id=client_request_id,
             )
@@ -111,11 +111,11 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
             return processed_response
         except Exception as e:
             end_time = time.perf_counter()
-            duration_ms = (end_time - start_time) * 1000
+            duration_s = (end_time - start_time)
             status_code = getattr(e, "status_code", 500)
             error_telemetry = {
                 "status_code": status_code,
-                "duration_ms": round(duration_ms, 2),
+                "duration_s": round(duration_s, 2),
                 "streaming": streaming,
                 "upstream_model": upstream_model,
                 "prompt_tokens": None,
@@ -148,14 +148,14 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         model_alias: str,
         upstream_model: str,
         streaming: bool,
-        duration_ms: float,
+        duration_s: float,
         remote_addr: str,
         client_request_id: str | None,
     ) -> Tuple[Dict[str, Any], Any]:
         status_code = getattr(response, "status_code", 200)
         telemetry: Dict[str, Any] = {
             "status_code": status_code,
-            "duration_ms": round(duration_ms, 2),
+            "duration_s": round(duration_s, 2),
             "streaming": streaming,
             "upstream_model": upstream_model,
             "prompt_tokens": None,
@@ -275,5 +275,11 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         return iterator()
 
     def _log_telemetry(self, telemetry_data: Dict[str, Any]) -> None:
-        log_entry = json.dumps(telemetry_data, separators=(',', ':'))
+        # Omit keys with None values to avoid logging unusable info
+        try:
+            filtered = {k: v for k, v in telemetry_data.items() if v is not None}
+            log_entry = json.dumps(filtered, separators=(',', ':'))
+        except Exception:
+            # As a last resort, coerce to string
+            log_entry = json.dumps({k: str(v) for k, v in telemetry_data.items() if v is not None})
         self.logger.info(log_entry)

@@ -238,7 +238,7 @@ class TestTelemetryMiddlewareCoverage:
             assert telemetry_data["upstream_model"] == "gpt-5"
             assert telemetry_data["success"] is True
             assert "timestamp" in telemetry_data
-            assert "duration_ms" in telemetry_data
+            assert "duration_s" in telemetry_data
 
 
 class TestExtractUsageDataCoverage:

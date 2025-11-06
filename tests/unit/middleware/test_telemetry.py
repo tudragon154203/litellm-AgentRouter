@@ -251,15 +251,16 @@ class TestTelemetryMiddleware:
 
         # Verify all required fields (filtered per PRD specification)
         assert logged_data["status_code"] == 200
-        assert logged_data["duration_ms"] == 150.0
+        assert logged_data["duration_s"] == 0.15
         assert logged_data["streaming"] is False
         assert logged_data["upstream_model"] == "openai/gpt-4"
         assert logged_data["prompt_tokens"] == 10
         assert logged_data["completion_tokens"] == 20
         assert logged_data["reasoning_tokens"] == 5
         assert logged_data["total_tokens"] == 30
-        assert logged_data["error_type"] is None
-        assert logged_data["error_message"] is None
+        # error fields should be omitted when not applicable
+        assert "error_type" not in logged_data
+        assert "error_message" not in logged_data
         # Verify filtered fields are NOT present per specification
         assert "event" not in logged_data
         assert "path" not in logged_data
@@ -365,9 +366,10 @@ class TestTelemetryMiddleware:
         logged_data = json.loads(self.log_records[0].getMessage())
 
         assert logged_data["missing_usage"] is True
-        assert logged_data["prompt_tokens"] is None
-        assert logged_data["completion_tokens"] is None
-        assert logged_data["total_tokens"] is None
+        # token fields should be omitted when usage is missing
+        assert "prompt_tokens" not in logged_data
+        assert "completion_tokens" not in logged_data
+        assert "total_tokens" not in logged_data
         # Verify filtered fields are NOT present per specification
         assert "event" not in logged_data
         assert "path" not in logged_data
@@ -413,7 +415,7 @@ class TestTelemetryMiddleware:
         logged_data = json.loads(self.log_records[0].getMessage())
 
         assert logged_data["streaming"] is True
-        assert logged_data["duration_ms"] == 200.0
+        assert logged_data["duration_s"] == 0.2
         assert logged_data["prompt_tokens"] == 15
         assert logged_data["completion_tokens"] == 25
         assert logged_data["reasoning_tokens"] == 8
@@ -576,8 +578,9 @@ class TestTelemetryMiddleware:
         assert logged_data["status_code"] == 429
         assert logged_data["error_type"] == "HTTPException"
         assert "Rate limit exceeded" in logged_data["error_message"]
-        assert logged_data["prompt_tokens"] is None
-        assert logged_data["completion_tokens"] is None
+        # token fields should be omitted on error
+        assert "prompt_tokens" not in logged_data
+        assert "completion_tokens" not in logged_data
         # Verify filtered fields are NOT present per specification
         assert "event" not in logged_data
         assert "path" not in logged_data
@@ -703,7 +706,7 @@ class TestTelemetryMiddleware:
         assert logged_data["parse_error"] is True
         # Should still have basic fields
         assert logged_data["status_code"] == 200
-        assert logged_data["duration_ms"] == 40.0
+        assert logged_data["duration_s"] == 0.04
         # Verify filtered fields are NOT present per specification
         assert "event" not in logged_data
         assert "path" not in logged_data

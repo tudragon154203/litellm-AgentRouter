@@ -31,7 +31,7 @@
    - `path`: literal `/v1/chat/completions`.
    - `method`: `POST`.
    - `status_code`: final HTTP status.
-   - `duration_ms`: float milliseconds between request start and final byte sent.
+   - `duration_s`: float seconds between request start and final byte sent.
    - `streaming`: boolean derived from request payload (`stream`) or response type.
    - `request_id`: completion response `id` when present.
    - `model_alias`: value from request (`model`) after alias resolution.
