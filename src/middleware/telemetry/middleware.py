@@ -5,14 +5,12 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import TelemetryConfig
-from .events import ErrorRaised, ResponseCompleted, UsageTokens
-from .pipeline import TelemetryPipeline
 from .request_context import apply_reasoning_policy
 from .usage import parse_usage_from_response, parse_usage_from_stream_chunk, to_usage_tokens, replayable_stream
 

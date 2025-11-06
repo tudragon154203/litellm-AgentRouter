@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import asyncio
 from types import SimpleNamespace
 
 from fastapi import Request
@@ -9,7 +8,6 @@ from fastapi import Request
 from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
 from src.middleware.telemetry.sinks.inmemory import InMemorySink
-from src.middleware.telemetry.request_context import apply_reasoning_policy
 
 
 class EnabledToggle:

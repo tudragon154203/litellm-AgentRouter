@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import pytest
-import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from fastapi import Request, Response
+from fastapi import Request
 
 from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
