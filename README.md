@@ -55,8 +55,6 @@ python -m src.main \
   --model-spec "key=glm,alias=glm-4.6,upstream=glm-4.6"
 ```
 
-**Note for Real API Integration Tests**: Integration tests that make actual API calls use `os.getenv()` directly after `runtime_config.ensure_loaded()` to access real API keys from the environment. This is intentional - they test against live services and need the actual environment variables.
-
 ## Client Usage
 
 Configure OpenAI-compatible clients with:
@@ -73,6 +71,21 @@ response = client.chat.completions.create(
     model="gpt-5",
     messages=[{"role": "user", "content": "Hello!"}]
 )
+```
+
+### Droid CLI Configuration
+
+Configure Droid CLI in `~/.factory/config.json`:
+
+```json
+{
+  "model_display_name": "ChatGPT 5 (AgentRouter - local proxy)",
+  "model": "gpt-5",
+  "base_url": "http://localhost:4000/v1",
+  "api_key": "sk-local-master",
+  "provider": "generic-chat-completion-api",
+  "max_tokens": 8192
+}
 ```
 
 ## Features
