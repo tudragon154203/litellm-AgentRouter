@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import datetime
 from typing import Any, AsyncIterator, Dict, Tuple
 
 from fastapi import Request, Response
@@ -113,8 +114,11 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
             end_time = time.perf_counter()
             duration_s = (end_time - start_time)
             status_code = getattr(e, "status_code", 500)
+            # RFC1123 local timestamp
+            timestamp = datetime.now().astimezone().strftime("%a, %d %b %Y %H:%M:%S %z")
             error_telemetry = {
                 "status_code": status_code,
+                "timestamp": timestamp,
                 "duration_s": round(duration_s, 2),
                 "streaming": streaming,
                 "upstream_model": upstream_model,
@@ -153,8 +157,11 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         client_request_id: str | None,
     ) -> Tuple[Dict[str, Any], Any]:
         status_code = getattr(response, "status_code", 200)
+        # RFC1123 local timestamp
+        timestamp = datetime.now().astimezone().strftime("%a, %d %b %Y %H:%M:%S %z")
         telemetry: Dict[str, Any] = {
             "status_code": status_code,
+            "timestamp": timestamp,
             "duration_s": round(duration_s, 2),
             "streaming": streaming,
             "upstream_model": upstream_model,

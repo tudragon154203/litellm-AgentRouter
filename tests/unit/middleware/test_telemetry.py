@@ -267,8 +267,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
     def test_parse_usage_fallback_sums_tokens(self):
         """Fallback path should compute total tokens when missing."""
@@ -376,8 +380,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
     def test_streaming_success_with_usage(self):
         """Test successful streaming request with usage in final chunk."""
@@ -587,8 +595,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
     def test_request_with_client_request_id(self):
         """Test request includes X-Request-ID header."""
@@ -630,8 +642,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
     def test_unknown_model_alias(self):
         """Test request with unknown model alias."""
@@ -672,8 +688,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
     def test_parse_error_resilience(self):
         """Test middleware resilience to JSON parsing errors."""
@@ -713,8 +733,12 @@ class TestTelemetryMiddleware:
         assert "method" not in logged_data
         assert "request_id" not in logged_data
         assert "model_alias" not in logged_data
-        assert "timestamp" not in logged_data
         assert "remote_addr" not in logged_data
+        # Timestamp should be present and RFC1123-ish (weekday, day, month, etc.)
+        assert "timestamp" in logged_data
+        ts = logged_data["timestamp"]
+        assert isinstance(ts, str)
+        assert "," in ts and ":" in ts and len(ts) >= 25
 
 
 class TestTelemetryEnableEnvVar:
