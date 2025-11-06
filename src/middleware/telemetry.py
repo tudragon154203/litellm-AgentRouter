@@ -28,6 +28,13 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.alias_lookup = alias_lookup
         self.logger = logging.getLogger("litellm_launcher.telemetry")
+        if self.logger.level == logging.NOTSET:
+            self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers and not logging.getLogger().handlers:
+            # Ensure telemetry logs are emitted even before the host configures logging.
+            stream_handler = logging.StreamHandler()
+            stream_handler.setLevel(logging.INFO)
+            self.logger.addHandler(stream_handler)
 
     async def dispatch(self, request: Request, call_next) -> Response:
         if not env_bool("TELEMETRY_ENABLE", True):

@@ -125,6 +125,32 @@ class TestTelemetryMiddleware:
         """Clean up test environment."""
         self.logger.removeHandler(self.test_handler)
 
+    def test_logger_defaults_to_info_level_when_unconfigured(self):
+        """Telemetry logger defaults to INFO when no explicit configuration exists."""
+        logger = logging.getLogger("litellm_launcher.telemetry")
+        original_level = logger.level
+        original_handlers = list(logger.handlers)
+        original_propagate = logger.propagate
+
+        try:
+            for handler in original_handlers:
+                logger.removeHandler(handler)
+            logger.setLevel(logging.NOTSET)
+            logger.propagate = True
+
+            dummy_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
+            middleware = TelemetryMiddleware(app=dummy_app, alias_lookup={})
+
+            assert middleware.logger.level == logging.INFO
+        finally:
+            new_handlers = [handler for handler in logger.handlers if handler not in original_handlers]
+            for handler in new_handlers:
+                logger.removeHandler(handler)
+            for handler in original_handlers:
+                logger.addHandler(handler)
+            logger.setLevel(original_level)
+            logger.propagate = original_propagate
+
     def create_mock_request(self, method="POST", path="/v1/chat/completions",
                             headers=None, json_body=None) -> Request:
         """Create a mock FastAPI Request."""
