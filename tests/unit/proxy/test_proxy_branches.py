@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from src.proxy import start_proxy
-from src.middleware.alias_lookup import create_alias_lookup
+from src.middleware.telemetry.alias_lookup import create_alias_lookup
 from src.config.models import ModelSpec
 
 

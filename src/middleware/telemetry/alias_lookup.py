@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from ..config.models import ModelSpec
+from ...config.models import ModelSpec
 
 
 def create_alias_lookup(model_specs: List[ModelSpec]) -> Dict[str, str]:

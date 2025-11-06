@@ -101,7 +101,7 @@ def test_present_reasoning_logs_debug_once(app, caplog):
 
 
 def test_reasoning_with_client_request_id(app, caplog):
-    """Test reasoning filtering with client request ID - covers line 50."""
+    """Test reasoning filtering with client request ID."""
     client = TestClient(app)
     with caplog.at_level("DEBUG", logger="litellm_launcher.filter"):
         res = client.post(
@@ -113,6 +113,9 @@ def test_reasoning_with_client_request_id(app, caplog):
     logged = [rec for rec in caplog.records if "client_request_id" in rec.message]
     assert len(logged) == 1
     assert "req-123" in logged[0].message
+
+
+
 
 
 def test_responses_endpoint_logs_when_reasoning_dropped(app, caplog):

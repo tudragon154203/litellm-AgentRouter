@@ -148,7 +148,7 @@ class TestStartupGuard:
 
     def test_telemetry_create_alias_lookup_function(self):
         """Test that telemetry.create_alias_lookup works through refined interface."""
-        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry.alias_lookup import create_alias_lookup
         from src.config.models import ModelSpec
 
         # Test create_alias_lookup with model specs
@@ -200,7 +200,7 @@ class TestStartupGuard:
         assert config_result is not None, "prepare_config should return config tuple"
 
         # 3. Create telemetry alias lookup
-        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry.alias_lookup import create_alias_lookup
         alias_lookup = create_alias_lookup([])
         assert isinstance(alias_lookup, dict), "Should create alias lookup"
 
@@ -226,7 +226,7 @@ class TestStartupGuard:
         from src.config.parsing import parse_model_spec
         from src.proxy import start_proxy
         from src.middleware.telemetry.middleware import TelemetryMiddleware
-        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry.alias_lookup import create_alias_lookup
 
         assert callable(main)
         assert callable(parse_args)

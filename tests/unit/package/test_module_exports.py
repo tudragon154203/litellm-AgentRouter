@@ -56,7 +56,7 @@ class TestModuleExports:
         assert telemetry_module is not None
 
         # Test that functions can be imported from telemetry submodules
-        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry.alias_lookup import create_alias_lookup
         from src.middleware.telemetry.middleware import TelemetryMiddleware
 
         # Verify functions are callable
@@ -101,7 +101,7 @@ class TestModuleExports:
         # This test would need to be updated based on actual implementation
         # For now, just verify that imports work as expected
         from src.config.models import ModelSpec
-        from src.middleware.alias_lookup import create_alias_lookup
+        from src.middleware.telemetry.alias_lookup import create_alias_lookup
 
         # Should be able to import documented items
         assert ModelSpec is not None
