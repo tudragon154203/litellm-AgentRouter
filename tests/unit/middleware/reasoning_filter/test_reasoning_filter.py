@@ -1,3 +1,4 @@
+import logging
 import pytest
 from starlette.testclient import TestClient
 from fastapi import FastAPI, Request
@@ -31,6 +32,19 @@ def app():
 
     app.add_middleware(ReasoningFilterMiddleware)
     return app
+
+
+@pytest.fixture(autouse=True)
+def reset_logger():
+    """Reset logger state before each test to ensure isolation."""
+    logger = logging.getLogger("litellm_launcher.filter")
+    # Clear any existing handlers
+    logger.handlers.clear()
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = True
+    yield
+    # Cleanup after test
+    logger.handlers.clear()
 
 
 def test_strips_top_level_reasoning(app):

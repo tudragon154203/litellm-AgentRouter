@@ -5,7 +5,6 @@ import asyncio
 import json
 import logging
 from types import SimpleNamespace
-from typing import Protocol
 
 from fastapi import Request, Response
 
@@ -215,7 +214,7 @@ class TestMiddlewareBranches:
         async def call_next(req):
             return response
 
-        result = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
 
         events = self.in_memory.get_events()
         completion_event = next(e for e in events if e.get("event_type") == "ResponseCompleted")
@@ -239,7 +238,7 @@ class TestMiddlewareBranches:
         async def call_next(req):
             return response
 
-        result = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
 
         events = self.in_memory.get_events()
         completion_event = next(e for e in events if e.get("event_type") == "ResponseCompleted")
@@ -263,7 +262,7 @@ class TestMiddlewareBranches:
         async def call_next(req):
             return response
 
-        result = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
 
         events = self.in_memory.get_events()
         completion_event = next(e for e in events if e.get("event_type") == "ResponseCompleted")
