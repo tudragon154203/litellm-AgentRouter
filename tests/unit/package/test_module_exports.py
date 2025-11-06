@@ -57,7 +57,7 @@ class TestModuleExports:
 
         # Test that functions can be imported from telemetry submodules
         from src.middleware.alias_lookup import create_alias_lookup
-        from src.middleware.telemetry import TelemetryMiddleware
+        from src.middleware.telemetry.middleware import TelemetryMiddleware
 
         # Verify functions are callable
         assert callable(create_alias_lookup), "create_alias_lookup should be callable"

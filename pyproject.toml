@@ -20,6 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.10.0",
     "pytest-xdist>=3.8.0",
@@ -33,6 +34,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
 addopts = [
     "--cov=src",
     "--cov-report=term-missing",

@@ -185,7 +185,7 @@ class TestInternalImportGuards:
         assert spec.key == "test"
 
         # Test telemetry public API
-        from src.middleware.telemetry import TelemetryMiddleware
+        from src.middleware.telemetry.middleware import TelemetryMiddleware
 
         # Should be able to create middleware
         middleware = TelemetryMiddleware(None, {"test": "openai/gpt-4"})

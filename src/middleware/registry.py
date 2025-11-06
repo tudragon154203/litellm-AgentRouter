@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import logging
 from typing import List
 
-from .telemetry import TelemetryMiddleware
+from .telemetry.middleware import TelemetryMiddleware
 from .alias_lookup import create_alias_lookup
 from .reasoning_filter import ReasoningFilterMiddleware
 from ..config.models import ModelSpec
-
-try:
-    from ..utils import env_bool
-except ImportError:  # pragma: no cover
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    from utils import env_bool
 
 
 def install_middlewares(app, model_specs: List[ModelSpec]) -> None:
     # Always install ReasoningFilterMiddleware to drop unsupported 'reasoning' param
     app.add_middleware(ReasoningFilterMiddleware)
 
-    # Telemetry is optional and controlled via env
-    if not env_bool("TELEMETRY_ENABLE", True):
-        logging.getLogger(__name__).info("Telemetry disabled; skipping telemetry middleware")
-        return
-
+    # Telemetry is now configured explicitly via TelemetryConfig (no env lookups)
     alias_lookup = create_alias_lookup(model_specs) if model_specs else {}
-    app.add_middleware(TelemetryMiddleware, alias_lookup=alias_lookup)
+    # Provide a no-op toggle that always enables by default; callers should pass their own config
+
+    class AlwaysOnToggle:
+        def enabled(self, request):
+            return True
+
+    from .telemetry.config import TelemetryConfig
+
+    # Default no-op reasoning policy
+    class NoOpReasoningPolicy:
+        def apply(self, request):
+            return request, {}
+
+    config = TelemetryConfig(
+        toggle=AlwaysOnToggle(),
+        alias_resolver=lambda alias: alias_lookup.get(alias, f"openai/{alias}"),
+        sinks=[],  # Host app should provide sinks; default empty means no emissions
+        reasoning_policy=NoOpReasoningPolicy(),
+    )
+
+    app.add_middleware(TelemetryMiddleware, config=config)
     app.state.litellm_telemetry_alias_lookup = alias_lookup

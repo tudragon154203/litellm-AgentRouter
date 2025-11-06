@@ -225,7 +225,7 @@ class TestStartupGuard:
         from src.config.models import ModelSpec
         from src.config.parsing import parse_model_spec
         from src.proxy import start_proxy
-        from src.middleware.telemetry import TelemetryMiddleware
+        from src.middleware.telemetry.middleware import TelemetryMiddleware
         from src.middleware.alias_lookup import create_alias_lookup
 
         assert callable(main)
