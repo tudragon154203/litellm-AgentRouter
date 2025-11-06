@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from types import SimpleNamespace
-from unittest.mock import patch, AsyncMock
+from typing import Protocol
 
 from fastapi import Request, Response
 
@@ -11,6 +13,16 @@ from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
 from src.middleware.telemetry.sinks.inmemory import InMemorySink
 from src.middleware.telemetry.request_context import NoOpReasoningPolicy
+
+
+class EnabledToggle:
+    def enabled(self, request):
+        return True
+
+
+class DisabledToggle:
+    def enabled(self, request):
+        return False
 
 
 class TestMiddlewareBranches:
@@ -70,9 +82,7 @@ class TestMiddlewareBranches:
 
         result = await middleware.dispatch(request, call_next)
 
-        # Should still process (default to enabled)
         assert result is response
-        # Should have emitted events
         assert len(self.in_memory.get_events()) > 0
 
     async def test_request_without_json_body(self):
@@ -85,7 +95,6 @@ class TestMiddlewareBranches:
         )
         middleware = TelemetryMiddleware(self.mock_app, config=config)
 
-        # Request without JSON body
         request = self._make_request(method="GET", path="/health")
         response = self._make_response(200)
 
@@ -95,7 +104,6 @@ class TestMiddlewareBranches:
         result = await middleware.dispatch(request, call_next)
 
         assert result is response
-        # Should use "unknown" as model alias
         events = self.in_memory.get_events()
         assert any(e.get("event_type") == "ResponseCompleted" for e in events)
 
@@ -159,7 +167,6 @@ class TestMiddlewareBranches:
         )
         middleware = TelemetryMiddleware(self.mock_app, config=config)
 
-        # Create request without client
         scope = {
             "type": "http",
             "method": "POST",
@@ -198,7 +205,6 @@ class TestMiddlewareBranches:
 
         request = self._make_request(json_body={"model": "test", "stream": True})
 
-        # Create streaming response without usage
         async def stream_generator():
             yield b'data: {"choices": [{"delta": {"content": "test"}}]}\n\n'
             yield b'data: [DONE]\n\n'
@@ -211,7 +217,6 @@ class TestMiddlewareBranches:
 
         result = await middleware.dispatch(request, call_next)
 
-        # Should handle gracefully
         events = self.in_memory.get_events()
         completion_event = next(e for e in events if e.get("event_type") == "ResponseCompleted")
         assert completion_event["streaming"] is True
@@ -228,7 +233,6 @@ class TestMiddlewareBranches:
 
         request = self._make_request(json_body={"model": "test", "stream": False})
 
-        # Create response without body attribute
         response = Response(content=b"test")
         delattr(response, "body")
 
@@ -237,7 +241,6 @@ class TestMiddlewareBranches:
 
         result = await middleware.dispatch(request, call_next)
 
-        # Should handle gracefully
         events = self.in_memory.get_events()
         completion_event = next(e for e in events if e.get("event_type") == "ResponseCompleted")
         assert completion_event["missing_usage"] is True
@@ -267,6 +270,158 @@ class TestMiddlewareBranches:
         assert completion_event["parse_error"] is True
 
 
-class EnabledToggle:
-    def enabled(self, request):
-        return True
+class TestMiddlewareToggle:
+    """Test telemetry toggle pass-through behavior."""
+
+    def setup_method(self):
+        self.log_records = []
+        handler = logging.Handler()
+        handler.setLevel(logging.DEBUG)
+        handler.emit = lambda record: self.log_records.append(record)
+        logging.getLogger("litellm_launcher.telemetry").addHandler(handler)
+
+        self.mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
+        self.sink = InMemorySink()
+
+        self.config = TelemetryConfig(
+            toggle=DisabledToggle(),
+            alias_resolver=lambda alias: f"openai/{alias}",
+            sinks=[self.sink],
+            reasoning_policy=NoOpReasoningPolicy(),
+        )
+
+        self.middleware = TelemetryMiddleware(app=self.mock_app, config=self.config)
+
+    def teardown_method(self):
+        logger = logging.getLogger("litellm_launcher.telemetry")
+        for h in list(logger.handlers):
+            if h.__class__ is logging.Handler:
+                logger.removeHandler(h)
+
+    def _make_request(self, method="POST", path="/v1/chat/completions", body: bytes = b"") -> Request:
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+            "query_string": b"",
+            "client": ("127.0.0.1", 12345),
+            "app": self.mock_app,
+        }
+        req = Request(scope)
+
+        async def receive():
+            return {"type": "http.request", "body": body, "more_body": False}
+        req._receive = receive
+        return req
+
+    def test_toggle_false_pass_through(self):
+        """Middleware must pass-through when toggle is disabled."""
+        request = self._make_request(body=b'{"model":"x","messages":[],"stream":false}')
+        response = Response(content=b'{"ok":true}', media_type="application/json")
+        response.body = response.body if hasattr(response, "body") else response.body
+
+        async def call_next(req: Request):
+            return response
+
+        result = asyncio.run(self.middleware.dispatch(request, call_next))
+
+        assert result is response, "Middleware must pass-through when toggle is disabled"
+        assert len(self.sink.get_events()) == 0, "No events should be emitted when toggle=false"
+        assert len(self.log_records) == 0, "No logger output expected when toggle=false"
+
+
+class TestMiddlewareIsolation:
+    """Verify new telemetry pipeline works independently without shared class state."""
+
+    async def test_new_middleware_with_explicit_config(self):
+        """TelemetryMiddleware works with explicit TelemetryConfig."""
+        mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
+        sink = InMemorySink()
+        config = TelemetryConfig(
+            toggle=EnabledToggle(),
+            alias_resolver=lambda alias: f"openai/{alias}",
+            sinks=[sink],
+            reasoning_policy=NoOpReasoningPolicy(),
+        )
+        middleware = TelemetryMiddleware(app=mock_app, config=config)
+
+        request = self._make_request()
+
+        async def call_next(req):
+            return Response(content=b'{"ok":true}')
+
+        from unittest.mock import patch
+        with patch("time.perf_counter") as mock_time:
+            mock_time.side_effect = [0.0, 0.100]
+            result = await middleware.dispatch(request, call_next)
+
+        assert result is not None
+        events = sink.get_events()
+        assert any(e.get("event_type") == "RequestReceived" for e in events)
+        assert any(e.get("event_type") == "ResponseCompleted" for e in events)
+
+    def _make_request(self, json_body=None):
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(json.dumps(json_body or {}))).encode())],
+            "query_string": b"",
+            "client": ("127.0.0.1", 12345),
+        }
+        req = Request(scope)
+        if json_body:
+            async def receive():
+                return {"type": "http.request", "body": json.dumps(json_body).encode(), "more_body": False}
+            req._receive = receive
+        return req
+
+
+class TestReasoningPolicyIntegration:
+    """Test reasoning policy mutation and debug metadata."""
+
+    def setup_method(self):
+        self.mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
+        self.in_memory = InMemorySink()
+        self.policy = DropReasoningPolicy()
+        self.config = TelemetryConfig(
+            toggle=EnabledToggle(),
+            alias_resolver=lambda alias: f"openai/{alias}",
+            sinks=[self.in_memory],
+            reasoning_policy=self.policy,
+        )
+        self.middleware = TelemetryMiddleware(self.mock_app, config=self.config)
+
+    async def test_reasoning_policy_mutates_and_emits_metadata(self):
+        """Policy should drop reasoning field and emit debug metadata."""
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "headers": [(b"content-type", b"application/json"), (b"content-length", b'{"model":"test","reasoning":"dropme"}')],
+            "query_string": b"",
+            "client": ("127.0.0.1", 12345),
+            "app": self.mock_app,
+        }
+        request = Request(scope)
+
+        async def receive():
+            return {"type": "http.request", "body": b'{"model":"test","reasoning":"dropme"}', "more_body": False}
+        request._receive = receive
+
+        async def call_next(req):
+            return Response(content=b'{"ok":true}')
+
+        result = await self.middleware.dispatch(request, call_next)
+
+        events = self.in_memory.get_events()
+        req_event = next((e for e in events if e.get("event_type") == "RequestReceived"))
+        assert req_event is not None
+        assert "dropped_param" in req_event.get("reasoning_metadata", {})
+        assert result is not None
+
+
+class DropReasoningPolicy:
+    def apply(self, request: Request):
+        return request, {"dropped_param": "reasoning"}

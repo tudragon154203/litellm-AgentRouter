@@ -3,20 +3,25 @@ from __future__ import annotations
 
 import json
 import logging
-import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import Request
+from fastapi import Request, Response
 
 from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
 from src.middleware.telemetry.sinks.inmemory import InMemorySink
+from src.middleware.telemetry.sinks.logger import LoggerSink
 from src.middleware.telemetry.request_context import NoOpReasoningPolicy
 
 
-class TestErrorFlow:
-    """Test exception path with ErrorRaised event emission."""
+class EnabledToggle:
+    def enabled(self, request):
+        return True
+
+
+class TestJSONResponseFlow:
+    """Test non-streaming request with usage extraction and multi-sink fan-out."""
 
     def setup_method(self):
         self.log_records = []
@@ -30,10 +35,11 @@ class TestErrorFlow:
 
         self.mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
         self.in_memory = InMemorySink()
+        self.logger_sink = LoggerSink("litellm.telemetry")
         self.config = TelemetryConfig(
             toggle=EnabledToggle(),
             alias_resolver=lambda alias: f"openai/{alias}",
-            sinks=[self.in_memory],
+            sinks=[self.in_memory, self.logger_sink],
             reasoning_policy=NoOpReasoningPolicy(),
         )
         self.middleware = TelemetryMiddleware(self.mock_app, config=self.config)
@@ -59,28 +65,32 @@ class TestErrorFlow:
             req._receive = receive
         return req
 
-    async def test_exception_emits_error_event_and_reraises(self):
-        request = self._make_request(json_body={"model": "test", "stream": False})
+    def _make_response(self, status_code=200, json_body=None):
+        content = (json.dumps(json_body) if json_body else "{}").encode()
+        resp = Response(content=content, media_type="application/json")
+        resp.status_code = status_code
+        resp.body = content
+        return resp
+
+    async def test_json_success_with_usage_and_fanout(self):
+        """Test successful JSON response with usage extraction and multi-sink emission."""
+        request = self._make_request(json_body={"model": "gpt-4", "stream": False})
+        response = self._make_response(200, {
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+        })
 
         async def call_next(req):
-            raise ValueError("Simulated downstream error")
+            return response
 
         with patch("time.perf_counter") as mock_time:
-            mock_time.side_effect = [0.0, 0.050]
+            mock_time.side_effect = [0.0, 0.150]
+            result = await self.middleware.dispatch(request, call_next)
 
-            with pytest.raises(ValueError, match="Simulated downstream error"):
-                await self.middleware.dispatch(request, call_next)
-
-        # InMemorySink should capture an ErrorRaised event
-        events = self.in_memory.get_events()
-        error_events = [e for e in events if e.get("event_type") == "ErrorRaised"]
-        assert len(error_events) >= 1, "Should have at least one ErrorRaised event"
-        error_event = error_events[0]
-        assert error_event["error_type"] == "ValueError"
-        assert "Simulated downstream error" in error_event["error_message"]
-        assert error_event["duration_s"] == 0.05
-
-
-class EnabledToggle:
-    def enabled(self, request):
-        return True
+        assert result is response
+        assert any(event for event in self.in_memory.get_events() if event), "InMemorySink should have captured an event"
+        assert len(self.log_records) == 1
+        log_record = self.log_records[0]
+        assert log_record.levelno == logging.INFO
+        logged = log_record.getMessage()
+        assert "prompt_tokens" in logged
+        assert "completion_tokens" in logged

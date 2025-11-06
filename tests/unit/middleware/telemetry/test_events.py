@@ -11,7 +11,7 @@ class TestEvents:
         """UsageTokens should be iterable."""
         usage = UsageTokens(total=100, prompt=40, completion=60, reasoning=20)
         items = list(usage)
-        
+
         # Should return key-value pairs
         assert len(items) == 4
         assert ("total", 100) in items
@@ -21,7 +21,7 @@ class TestEvents:
         """UsageTokens should provide keys()."""
         usage = UsageTokens(total=100, prompt=40, completion=60, reasoning=20)
         keys = usage.keys()
-        
+
         assert "total" in keys
         assert "prompt" in keys
         assert "completion" in keys
@@ -31,7 +31,7 @@ class TestEvents:
         """UsageTokens should provide values()."""
         usage = UsageTokens(total=100, prompt=40, completion=60, reasoning=20)
         values = list(usage.values())
-        
+
         assert 100 in values
         assert 40 in values
         assert 60 in values
@@ -41,7 +41,7 @@ class TestEvents:
         """UsageTokens should provide items()."""
         usage = UsageTokens(total=100, prompt=40, completion=60, reasoning=20)
         items = list(usage.items())
-        
+
         assert ("total", 100) in items
         assert ("prompt", 40) in items
         assert ("completion", 60) in items

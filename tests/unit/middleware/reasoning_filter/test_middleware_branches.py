@@ -22,7 +22,7 @@ class TestReasoningFilterBranches:
         self.logger.addHandler(handler)
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False
-        
+
         self.mock_app = SimpleNamespace()
         self.middleware = ReasoningFilterMiddleware(self.mock_app)
 
@@ -34,7 +34,7 @@ class TestReasoningFilterBranches:
         default_headers = [(b"content-type", b"application/json")]
         if headers:
             default_headers.extend(headers)
-        
+
         scope = {
             "type": "http",
             "method": method,
@@ -57,17 +57,17 @@ class TestReasoningFilterBranches:
             json_body={"model": "test", "reasoning": "high"},
             headers=[(b"x-request-id", b"req-123")]
         )
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should log with client_request_id
         assert len(self.log_records) == 1
@@ -87,21 +87,21 @@ class TestReasoningFilterBranches:
             "app": self.mock_app,
         }
         request = Request(scope)
-        
+
         async def receive():
             return {"type": "http.request", "body": b"", "more_body": False}
         request._receive = receive
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should not log anything
         assert len(self.log_records) == 0
@@ -118,21 +118,21 @@ class TestReasoningFilterBranches:
             "app": self.mock_app,
         }
         request = Request(scope)
-        
+
         async def receive():
             return {"type": "http.request", "body": b"not valid json", "more_body": False}
         request._receive = receive
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should not log anything
         assert len(self.log_records) == 0
@@ -140,21 +140,21 @@ class TestReasoningFilterBranches:
     async def test_filter_non_dict_payload(self):
         """Filter should handle non-dict JSON payloads."""
         request = self._make_request(method="POST", path="/v1/chat/completions")
-        
+
         async def receive():
             return {"type": "http.request", "body": b'["array", "payload"]', "more_body": False}
         request._receive = receive
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should not log anything (no reasoning to drop)
         assert len(self.log_records) == 0
@@ -166,17 +166,17 @@ class TestReasoningFilterBranches:
             path="/custom/endpoint",
             json_body={"model": "test", "reasoning": "high"}
         )
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should not log anything (path not in filter list)
         assert len(self.log_records) == 0
@@ -184,17 +184,17 @@ class TestReasoningFilterBranches:
     async def test_filter_get_request(self):
         """Filter should not process GET requests."""
         request = self._make_request(method="GET", path="/v1/chat/completions")
-        
+
         response_called = False
-        
+
         async def call_next(req):
             nonlocal response_called
             response_called = True
             from fastapi import Response
             return Response(content=b"{}")
-        
+
         await self.middleware.dispatch(request, call_next)
-        
+
         assert response_called
         # Should not log anything (not POST)
         assert len(self.log_records) == 0

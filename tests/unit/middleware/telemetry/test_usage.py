@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import json
-import pytest
-
 from src.middleware.telemetry.usage import (
     parse_usage_from_response,
     parse_usage_from_stream_chunk,

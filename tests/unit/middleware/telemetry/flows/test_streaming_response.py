@@ -11,16 +11,19 @@ from fastapi import Request, Response
 from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
 from src.middleware.telemetry.sinks.inmemory import InMemorySink
-from src.middleware.telemetry.sinks.logger import LoggerSink
 from src.middleware.telemetry.request_context import NoOpReasoningPolicy
 
 
-class TestJSONFlow:
-    """Test non-streaming request with usage extraction and multi-sink fan-out."""
+class EnabledToggle:
+    def enabled(self, request):
+        return True
+
+
+class TestStreamingResponseFlow:
+    """Test streaming response with replayable iterator and usage extraction."""
 
     def setup_method(self):
         self.log_records = []
-        # Use same logger name as LoggerSink to capture its logs
         handler = logging.Handler()
         handler.setLevel(logging.DEBUG)
         handler.emit = lambda rec: self.log_records.append(rec)
@@ -31,11 +34,10 @@ class TestJSONFlow:
 
         self.mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
         self.in_memory = InMemorySink()
-        self.logger_sink = LoggerSink("litellm.telemetry")
         self.config = TelemetryConfig(
             toggle=EnabledToggle(),
             alias_resolver=lambda alias: f"openai/{alias}",
-            sinks=[self.in_memory, self.logger_sink],
+            sinks=[self.in_memory],
             reasoning_policy=NoOpReasoningPolicy(),
         )
         self.middleware = TelemetryMiddleware(self.mock_app, config=self.config)
@@ -61,38 +63,36 @@ class TestJSONFlow:
             req._receive = receive
         return req
 
-    def _make_response(self, status_code=200, json_body=None):
-        content = (json.dumps(json_body) if json_body else "{}").encode()
-        resp = Response(content=content, media_type="application/json")
-        resp.status_code = status_code
-        resp.body = content
+    async def _mock_streaming_response(self):
+        """Create a mock streaming response with usage in last chunk."""
+        chunks = [
+            b'data: {"choices": [{"delta": {"content": "Hi"}}]\n\n',
+            b'data: {"choices": [{"delta": {"content": " there"}}]\n\n',
+            b'data: {"usage": {"prompt_tokens": 15, "completion_tokens": 25, "total_tokens": 40}}\n\n',
+            b'data: [DONE]\n\n',
+        ]
+
+        async def body_iterator():
+            for chunk in chunks:
+                yield chunk
+
+        resp = Response()
+        resp.body_iterator = body_iterator()
+        setattr(resp, "status_code", 200)
         return resp
 
-    async def test_json_success_with_usage_and_fanout(self):
-        request = self._make_request(json_body={"model": "gpt-4", "stream": False})
-        response = self._make_response(200, {
-            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
-        })
+    async def test_streaming_usage_extraction_and_replay(self):
+        """Test streaming response with usage extraction from chunks."""
+        request = self._make_request(json_body={"model": "test-model", "stream": True})
+        mock_response = await self._mock_streaming_response()
 
         async def call_next(req):
-            return response
+            return mock_response
 
         with patch("time.perf_counter") as mock_time:
-            mock_time.side_effect = [0.0, 0.150]
+            mock_time.side_effect = [0.0, 0.200]
             result = await self.middleware.dispatch(request, call_next)
 
-        assert result is response
-        # InMemorySink should capture an event (implementation may emit one event or two; we only verify one non-empty)
-        assert any(event for event in self.in_memory.get_events() if event), "InMemorySink should have captured an event"
-        # LoggerSink should emit a JSON line via INFO
-        assert len(self.log_records) == 1
-        log_record = self.log_records[0]
-        assert log_record.levelno == logging.INFO
-        logged = log_record.getMessage()
-        assert "prompt_tokens" in logged
-        assert "completion_tokens" in logged
-
-
-class EnabledToggle:
-    def enabled(self, request):
-        return True
+        assert result is not None
+        events = self.in_memory.get_events()
+        assert len(events) >= 2, "Should have RequestReceived and ResponseCompleted (or more)"

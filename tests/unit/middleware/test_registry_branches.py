@@ -15,10 +15,10 @@ class TestRegistryBranches:
         app = SimpleNamespace()
         app.add_middleware = lambda *args, **kwargs: None
         app.state = SimpleNamespace()
-        
+
         # Should not raise with empty list
         install_middlewares(app, [])
-        
+
         # Should set empty alias lookup
         assert hasattr(app.state, "litellm_telemetry_alias_lookup")
         assert app.state.litellm_telemetry_alias_lookup == {}
@@ -28,10 +28,10 @@ class TestRegistryBranches:
         app = SimpleNamespace()
         app.add_middleware = lambda *args, **kwargs: None
         app.state = SimpleNamespace()
-        
+
         # Should not raise with None
         install_middlewares(app, None)
-        
+
         # Should set empty alias lookup
         assert hasattr(app.state, "litellm_telemetry_alias_lookup")
         assert app.state.litellm_telemetry_alias_lookup == {}
@@ -40,13 +40,13 @@ class TestRegistryBranches:
         """install_middlewares should create alias lookup from model specs."""
         app = SimpleNamespace()
         middlewares_added = []
-        
+
         def track_middleware(middleware_class, **kwargs):
             middlewares_added.append((middleware_class, kwargs))
-        
+
         app.add_middleware = track_middleware
         app.state = SimpleNamespace()
-        
+
         model_specs = [
             ModelSpec(
                 key="gpt4",
@@ -59,12 +59,12 @@ class TestRegistryBranches:
                 alias="claude-3"
             )
         ]
-        
+
         install_middlewares(app, model_specs)
-        
+
         # Should add both middlewares
         assert len(middlewares_added) == 2
-        
+
         # Should create alias lookup
         assert hasattr(app.state, "litellm_telemetry_alias_lookup")
         alias_lookup = app.state.litellm_telemetry_alias_lookup
@@ -75,20 +75,20 @@ class TestRegistryBranches:
     def test_always_on_toggle_enabled(self):
         """AlwaysOnToggle should always return True."""
         from src.middleware.registry import install_middlewares
-        
+
         app = SimpleNamespace()
         config_captured = None
-        
+
         def capture_middleware(middleware_class, **kwargs):
             nonlocal config_captured
             if "config" in kwargs:
                 config_captured = kwargs["config"]
-        
+
         app.add_middleware = capture_middleware
         app.state = SimpleNamespace()
-        
+
         install_middlewares(app, [])
-        
+
         # Check that toggle is always enabled
         if config_captured:
             from fastapi import Request
@@ -107,20 +107,20 @@ class TestRegistryBranches:
     def test_noop_reasoning_policy_apply(self):
         """NoOpReasoningPolicy should return request unchanged."""
         from src.middleware.registry import install_middlewares
-        
+
         app = SimpleNamespace()
         config_captured = None
-        
+
         def capture_middleware(middleware_class, **kwargs):
             nonlocal config_captured
             if "config" in kwargs:
                 config_captured = kwargs["config"]
-        
+
         app.add_middleware = capture_middleware
         app.state = SimpleNamespace()
-        
+
         install_middlewares(app, [])
-        
+
         # Check that reasoning policy is no-op
         if config_captured:
             from fastapi import Request

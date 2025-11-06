@@ -18,14 +18,14 @@ class TestMainBranches:
                 mock_args = MagicMock()
                 mock_args.print_config = True
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.prepare_config") as mock_prepare:
                     mock_prepare.return_value = ("config: test", True)
-                    
+
                     with patch("sys.exit") as mock_exit:
                         with patch("builtins.print") as mock_print:
                             main()
-                            
+
                             # Should print config
                             mock_print.assert_called()
                             # Should exit with 0
@@ -38,19 +38,19 @@ class TestMainBranches:
                 mock_args = MagicMock()
                 mock_args.print_config = False
                 mock_parse.return_value = mock_args
-                
+
                 with patch("src.main.prepare_config") as mock_prepare:
                     mock_prepare.return_value = ("config: test", True)
-                    
+
                     with patch("src.main.create_temp_config_if_needed") as mock_temp:
                         mock_temp.return_value.__enter__ = MagicMock(return_value=Path("/tmp/config.yaml"))
                         mock_temp.return_value.__exit__ = MagicMock(return_value=False)
-                        
+
                         with patch("src.main.start_proxy") as mock_start:
                             with patch("sys.exit") as mock_exit:
                                 with patch("src.main.get_startup_message", return_value="Starting..."):
                                     main()
-                                    
+
                                     # Should start proxy
                                     mock_start.assert_called_once()
                                     # Should exit with 0

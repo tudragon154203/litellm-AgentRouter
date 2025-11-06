@@ -14,10 +14,10 @@ class TestUtilsBranches:
         original = os.environ.get("SKIP_PREREQ_CHECK")
         try:
             os.environ["SKIP_PREREQ_CHECK"] = "1"
-            
+
             # Should not raise even if imports would fail
             validate_prereqs()
-            
+
         finally:
             if original is not None:
                 os.environ["SKIP_PREREQ_CHECK"] = original
@@ -29,10 +29,10 @@ class TestUtilsBranches:
         original = os.environ.get("SKIP_PREREQ_CHECK")
         try:
             os.environ.pop("SKIP_PREREQ_CHECK", None)
-            
+
             # Should succeed with litellm installed
             validate_prereqs()
-            
+
         finally:
             if original is not None:
                 os.environ["SKIP_PREREQ_CHECK"] = original

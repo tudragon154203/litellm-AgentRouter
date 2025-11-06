@@ -115,9 +115,6 @@ def test_reasoning_with_client_request_id(app, caplog):
     assert "req-123" in logged[0].message
 
 
-
-
-
 def test_responses_endpoint_logs_when_reasoning_dropped(app, caplog):
     client = TestClient(app)
     with caplog.at_level("DEBUG", logger="litellm_launcher.filter"):

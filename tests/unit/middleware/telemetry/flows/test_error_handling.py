@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 import logging
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import Request, Response
+from fastapi import Request
 
 from src.middleware.telemetry.middleware import TelemetryMiddleware
 from src.middleware.telemetry.config import TelemetryConfig
@@ -14,8 +15,13 @@ from src.middleware.telemetry.sinks.inmemory import InMemorySink
 from src.middleware.telemetry.request_context import NoOpReasoningPolicy
 
 
-class TestStreamingFlow:
-    """Test streaming response with replayable iterator and usage extraction."""
+class EnabledToggle:
+    def enabled(self, request):
+        return True
+
+
+class TestErrorHandlingFlow:
+    """Test exception path with ErrorRaised event emission."""
 
     def setup_method(self):
         self.log_records = []
@@ -58,43 +64,23 @@ class TestStreamingFlow:
             req._receive = receive
         return req
 
-    async def _mock_streaming_response(self):
-        """Create a mock streaming response with usage in last chunk."""
-        chunks = [
-            b'data: {"choices": [{"delta": {"content": "Hi"}}]\n\n',
-            b'data: {"choices": [{"delta": {"content": " there"}}]\n\n',
-            b'data: {"usage": {"prompt_tokens": 15, "completion_tokens": 25, "total_tokens": 40}}\n\n',
-            b'data: [DONE]\n\n',
-        ]
-
-        async def body_iterator():
-            for chunk in chunks:
-                yield chunk
-
-        resp = Response()
-        resp.body_iterator = body_iterator()
-        setattr(resp, "status_code", 200)
-        return resp
-
-    async def test_streaming_usage_extraction_and_replay(self):
-        request = self._make_request(json_body={"model": "test-model", "stream": True})
-        mock_response = await self._mock_streaming_response()
+    async def test_exception_emits_error_event_and_reraises(self):
+        """Test that exceptions emit ErrorRaised event and are re-raised."""
+        request = self._make_request(json_body={"model": "test", "stream": False})
 
         async def call_next(req):
-            return mock_response
+            raise ValueError("Simulated downstream error")
 
         with patch("time.perf_counter") as mock_time:
-            mock_time.side_effect = [0.0, 0.200]
-            result = await self.middleware.dispatch(request, call_next)
+            mock_time.side_effect = [0.0, 0.050]
 
-        # Should return a response (stream made replayable)
-        assert result is not None
+            with pytest.raises(ValueError, match="Simulated downstream error"):
+                await self.middleware.dispatch(request, call_next)
 
-        # InMemorySink should capture events (exact ordering depends on implementation)
         events = self.in_memory.get_events()
-        assert len(events) >= 2, "Should have RequestReceived and ResponseCompleted (or more)"
-
-
-class EnabledToggle:
-    def enabled(self, request):
-        return True
+        error_events = [e for e in events if e.get("event_type") == "ErrorRaised"]
+        assert len(error_events) >= 1, "Should have at least one ErrorRaised event"
+        error_event = error_events[0]
+        assert error_event["error_type"] == "ValueError"
+        assert "Simulated downstream error" in error_event["error_message"]
+        assert error_event["duration_s"] == 0.05
