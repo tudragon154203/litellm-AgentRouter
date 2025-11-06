@@ -8,3 +8,4 @@
 - Avoid `__all__` or explicit export statements at the end of Python files; rely on natural module structure.
 - Use descriptive variable names that clearly indicate their purpose and data type (e.g., `user_id` instead of `uid`, `is_authenticated` instead of `auth`).
 - Document any assumptions, verification steps, and follow-up actions so future agents can continue seamlessly.
+- Prefer using centralized config src\config\config.py instead of os.getenv
