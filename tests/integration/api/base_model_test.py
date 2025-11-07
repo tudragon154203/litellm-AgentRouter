@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +24,7 @@ class ModelConfig:
     base_url_env: str
     default_base_url: str
     supports_system_message: bool = True
+    supports_tool_calling: bool = True
     content_field: str = "content"  # or "reasoning_content" for some models
     fallback_content_field: str | None = None
 
@@ -143,3 +145,99 @@ class BaseModelTest:
             temperature=0.7,
         )
         self._assert_streaming_response(stream)
+
+    def test_tool_calling_basic(self):
+        """Test basic tool calling with a single tool definition."""
+        if not self.model_config.supports_tool_calling:
+            pytest.skip(f"{self.model_config.model_name} does not support tool calling")
+
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "enum": ["celsius", "fahrenheit"],
+                                "description": "The temperature unit to use"
+                            }
+                        },
+                        "required": ["location"]
+                    }
+                }
+            }
+        ]
+
+        response = self._call_api_not_stream(
+            messages=[{"role": "user", "content": "What's the weather like in Paris?"}],
+            tools=tools,
+            tool_choice="auto",
+            max_tokens=1000,
+            temperature=0.7,
+        )
+
+        assert response is not None
+        assert hasattr(response, 'choices')
+        assert len(response.choices) > 0
+
+        message = response.choices[0].message
+        assert message is not None
+        assert hasattr(message, 'tool_calls')
+        assert message.tool_calls is not None
+        assert len(message.tool_calls) > 0
+
+        tool_call = message.tool_calls[0]
+        assert tool_call.function.name == "get_weather"
+
+        args = json.loads(tool_call.function.arguments)
+        assert "location" in args
+        assert "paris" in args["location"].lower()
+
+    def test_tool_calling_optional(self):
+        """Test that model can choose not to use tools when not needed."""
+        if not self.model_config.supports_tool_calling:
+            pytest.skip(f"{self.model_config.model_name} does not support tool calling")
+
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state"
+                            }
+                        },
+                        "required": ["location"]
+                    }
+                }
+            }
+        ]
+
+        response = self._call_api_not_stream(
+            messages=[{"role": "user", "content": "What is 2+2?"}],
+            tools=tools,
+            tool_choice="auto",
+            max_tokens=1000,
+            temperature=0.7,
+        )
+
+        message = response.choices[0].message
+
+        # Model should respond directly without calling the weather tool
+        if message.tool_calls is None or len(message.tool_calls) == 0:
+            content = self._extract_content(message)
+            assert len(content) > 0
+            assert any(word in content.lower() for word in ["4", "four"])
