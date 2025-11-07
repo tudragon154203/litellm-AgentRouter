@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import pytest
 
 from src.config.parsing import load_model_specs_from_env, load_model_specs_from_cli
@@ -92,9 +93,9 @@ class TestLoadModelSpecsFromCli:
         """Test loading models with upstream references."""
         # Define upstreams
         monkeypatch.setenv("UPSTREAM_AGENTROUTER_BASE_URL", "https://agentrouter.org/v1")
-        monkeypatch.setenv("UPSTREAM_AGENTROUTER_API_KEY_ENV", "AGENTROUTER_API_KEY")
+        monkeypatch.setenv("UPSTREAM_AGENTROUTER_API_KEY", "sk-agentrouter-test")
         monkeypatch.setenv("UPSTREAM_HUBS_BASE_URL", "https://api.hubs.com/v1")
-        monkeypatch.setenv("UPSTREAM_HUBS_API_KEY_ENV", "HUBS_API_KEY")
+        monkeypatch.setenv("UPSTREAM_HUBS_API_KEY", "sk-hubs-test")
 
         # Define models
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,claude45")
@@ -109,15 +110,20 @@ class TestLoadModelSpecsFromCli:
         assert specs[0].key == "gpt5"
         assert specs[0].upstream_name == "agentrouter"
         assert specs[0].upstream_base == "https://agentrouter.org/v1"
-        assert specs[0].upstream_key_env == "AGENTROUTER_API_KEY"
+        assert specs[0].upstream_key_env == "sk-agentrouter-test"
 
         assert specs[1].key == "claude45"
         assert specs[1].upstream_name == "hubs"
         assert specs[1].upstream_base == "https://api.hubs.com/v1"
-        assert specs[1].upstream_key_env == "HUBS_API_KEY"
+        assert specs[1].upstream_key_env == "sk-hubs-test"
 
     def test_load_models_without_upstream_uses_global_defaults(self, monkeypatch):
         """Test loading models without upstream (uses global defaults)."""
+        # Clear any existing upstream definitions and model upstream references
+        for key in list(os.environ.keys()):
+            if key.startswith("UPSTREAM_") or key.startswith("MODEL_GPT5_UPSTREAM"):
+                monkeypatch.delenv(key, raising=False)
+
         monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
@@ -156,6 +162,11 @@ class TestLoadModelSpecsFromCli:
 
     def test_backward_compatibility_with_existing_configs(self, monkeypatch):
         """Test backward compatibility with existing single-upstream configs."""
+        # Clear any existing upstream definitions and model upstream references
+        for key in list(os.environ.keys()):
+            if key.startswith("UPSTREAM_") or "_UPSTREAM" in key:
+                monkeypatch.delenv(key, raising=False)
+
         monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")

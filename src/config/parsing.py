@@ -14,14 +14,14 @@ from .models import ModelSpec, UpstreamSpec
 def parse_upstream_registry() -> Dict[str, UpstreamSpec]:
     """Parse upstream definitions from environment variables.
 
-    Scans for UPSTREAM_<NAME>_BASE_URL and UPSTREAM_<NAME>_API_KEY_ENV patterns.
+    Scans for UPSTREAM_<NAME>_BASE_URL and UPSTREAM_<NAME>_API_KEY patterns.
     Upstream names are case-insensitive and stored as lowercase keys.
 
     Returns:
         Dictionary mapping lowercase upstream names to UpstreamSpec objects
 
     Raises:
-        ValueError: If an upstream has only BASE_URL or only API_KEY_ENV
+        ValueError: If an upstream has only BASE_URL or only API_KEY
     """
     upstreams: Dict[str, Dict[str, str]] = {}
 
@@ -30,36 +30,37 @@ def parse_upstream_registry() -> Dict[str, UpstreamSpec]:
         if not env_var.startswith("UPSTREAM_"):
             continue
 
-        # Parse variable name: UPSTREAM_<NAME>_BASE_URL or UPSTREAM_<NAME>_API_KEY_ENV
-        parts = env_var.split("_", 2)  # Split into ['UPSTREAM', '<NAME>', 'BASE_URL' or 'API_KEY_ENV']
+        # Parse variable name: UPSTREAM_<NAME>_BASE_URL or UPSTREAM_<NAME>_API_KEY
+        parts = env_var.split("_", 2)  # Split into ['UPSTREAM', '<NAME>', 'BASE_URL' or 'API_KEY']
         if len(parts) < 3:
             continue
 
         upstream_name = parts[1].lower()  # Normalize to lowercase
-        suffix = "_".join(parts[2:])  # Rejoin remaining parts (e.g., 'BASE_URL', 'API_KEY_ENV')
+        suffix = "_".join(parts[2:])  # Rejoin remaining parts (e.g., 'BASE_URL', 'API_KEY')
 
         if upstream_name not in upstreams:
             upstreams[upstream_name] = {}
 
         if suffix == "BASE_URL":
             upstreams[upstream_name]["base_url"] = value
-        elif suffix == "API_KEY_ENV":
-            upstreams[upstream_name]["api_key_env"] = value
+        elif suffix == "API_KEY":
+            upstreams[upstream_name]["api_key"] = value
 
     # Validate and create UpstreamSpec objects
     registry: Dict[str, UpstreamSpec] = {}
     for name, config in upstreams.items():
         base_url = config.get("base_url")
-        api_key_env = config.get("api_key_env")
+        api_key = config.get("api_key")
 
-        if base_url and api_key_env:
-            registry[name] = UpstreamSpec(name=name, base_url=base_url, api_key_env=api_key_env)
-        elif base_url or api_key_env:
+        if base_url and api_key:
+            # Store the API key directly as api_key_env for backward compatibility with ModelSpec
+            registry[name] = UpstreamSpec(name=name, base_url=base_url, api_key_env=api_key)
+        elif base_url or api_key:
             # Incomplete upstream definition
-            missing = "API_KEY_ENV" if not api_key_env else "BASE_URL"
+            missing = "API_KEY" if not api_key else "BASE_URL"
             raise ValueError(
                 f"Upstream '{name}' is incomplete. "
-                f"Both UPSTREAM_{name.upper()}_BASE_URL and UPSTREAM_{name.upper()}_API_KEY_ENV must be defined. "
+                f"Both UPSTREAM_{name.upper()}_BASE_URL and UPSTREAM_{name.upper()}_API_KEY must be defined. "
                 f"Missing: UPSTREAM_{name.upper()}_{missing}"
             )
 

@@ -95,10 +95,10 @@ Configure models from multiple upstream providers to access different LLM servic
 ```bash
 # Define upstream providers
 UPSTREAM_AGENTROUTER_BASE_URL=https://agentrouter.org/v1
-UPSTREAM_AGENTROUTER_API_KEY_ENV=AGENTROUTER_API_KEY
+UPSTREAM_AGENTROUTER_API_KEY=sk-your-agentrouter-key
 
 UPSTREAM_HUBS_BASE_URL=https://api.hubs.com/v1
-UPSTREAM_HUBS_API_KEY_ENV=HUBS_API_KEY
+UPSTREAM_HUBS_API_KEY=sk-your-hubs-key
 
 # Configure models with upstream references
 PROXY_MODEL_KEYS=gpt5,claude45
@@ -108,10 +108,6 @@ MODEL_GPT5_UPSTREAM_MODEL=gpt-5
 
 MODEL_CLAUDE45_UPSTREAM=hubs
 MODEL_CLAUDE45_UPSTREAM_MODEL=claude-4.5-sonnet
-
-# Set API keys
-AGENTROUTER_API_KEY=sk-your-agentrouter-key
-HUBS_API_KEY=sk-your-hubs-key
 ```
 
 **Configuration Precedence:**

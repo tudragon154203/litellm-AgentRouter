@@ -36,7 +36,13 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
     ]
 
     if upstream_key_env:
-        lines.append(f"      api_key: {quote(f'os.environ/{upstream_key_env}')}")
+        # Check if it's an environment variable reference or a direct key
+        if upstream_key_env.startswith("sk-") or len(upstream_key_env) > 20:
+            # Direct API key value
+            lines.append(f"      api_key: {quote(upstream_key_env)}")
+        else:
+            # Environment variable reference
+            lines.append(f"      api_key: {quote(f'os.environ/{upstream_key_env}')}")
     else:
         lines.append("      api_key: null")
 
