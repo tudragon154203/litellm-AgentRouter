@@ -148,3 +148,127 @@ class TestRenderConfig:
                 drop_params=False,
                 streaming=True
             )
+
+    def test_render_model_with_custom_upstream(self):
+        """Test rendering model with custom upstream (api_base and api_key included)."""
+        spec = make_spec(
+            key="gpt5",
+            alias="gpt-5",
+            upstream_model="gpt-5",
+            upstream_base="https://custom.api.com/v1",
+            upstream_key_env="CUSTOM_API_KEY"
+        )
+
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://agentrouter.org/v1",
+            global_upstream_key_env="OPENAI_API_KEY",
+            master_key="sk-master",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        model_params = parsed["model_list"][0]["litellm_params"]
+        assert model_params["api_base"] == "https://custom.api.com/v1"
+        assert model_params["api_key"] == "os.environ/CUSTOM_API_KEY"
+
+    def test_render_model_with_global_defaults(self):
+        """Test rendering model with global defaults (api_base and api_key included)."""
+        spec = make_spec(
+            key="gpt5",
+            alias="gpt-5",
+            upstream_model="gpt-5"
+        )
+
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://agentrouter.org/v1",
+            global_upstream_key_env="OPENAI_API_KEY",
+            master_key="sk-master",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        model_params = parsed["model_list"][0]["litellm_params"]
+        assert model_params["api_base"] == "https://agentrouter.org/v1"
+        assert model_params["api_key"] == "os.environ/OPENAI_API_KEY"
+
+    def test_render_multiple_models_with_different_upstreams(self):
+        """Test rendering multiple models with different upstreams."""
+        specs = [
+            make_spec(
+                key="gpt5",
+                alias="gpt-5",
+                upstream_model="gpt-5",
+                upstream_base="https://agentrouter.org/v1",
+                upstream_key_env="AGENTROUTER_API_KEY"
+            ),
+            make_spec(
+                key="claude",
+                alias="claude-4.5-sonnet",
+                upstream_model="claude-4.5-sonnet",
+                upstream_base="https://api.hubs.com/v1",
+                upstream_key_env="HUBS_API_KEY"
+            ),
+        ]
+
+        config_text = render_config(
+            model_specs=specs,
+            global_upstream_base="https://default.com/v1",
+            global_upstream_key_env="DEFAULT_KEY",
+            master_key="sk-master",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+        assert len(parsed["model_list"]) == 2
+
+        # First model
+        model1_params = parsed["model_list"][0]["litellm_params"]
+        assert model1_params["api_base"] == "https://agentrouter.org/v1"
+        assert model1_params["api_key"] == "os.environ/AGENTROUTER_API_KEY"
+
+        # Second model
+        model2_params = parsed["model_list"][1]["litellm_params"]
+        assert model2_params["api_base"] == "https://api.hubs.com/v1"
+        assert model2_params["api_key"] == "os.environ/HUBS_API_KEY"
+
+    def test_verify_yaml_structure_matches_expected_format(self):
+        """Verify YAML structure matches expected format for multi-upstream."""
+        spec = make_spec(
+            key="gpt5",
+            alias="gpt-5",
+            upstream_model="gpt-5",
+            upstream_base="https://agentrouter.org/v1",
+            upstream_key_env="AGENTROUTER_API_KEY"
+        )
+
+        config_text = render_config(
+            model_specs=[spec],
+            global_upstream_base="https://default.com/v1",
+            global_upstream_key_env="DEFAULT_KEY",
+            master_key="sk-master",
+            drop_params=True,
+            streaming=True,
+        )
+
+        parsed = yaml.safe_load(config_text)
+
+        # Verify structure
+        assert "model_list" in parsed
+        assert "litellm_settings" in parsed
+        assert "general_settings" in parsed
+
+        model_entry = parsed["model_list"][0]
+        assert "model_name" in model_entry
+        assert "litellm_params" in model_entry
+
+        params = model_entry["litellm_params"]
+        assert "model" in params
+        assert "api_base" in params
+        assert "api_key" in params
+        assert "custom_llm_provider" in params
+        assert "headers" in params

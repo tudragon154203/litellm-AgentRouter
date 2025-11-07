@@ -87,3 +87,88 @@ class TestLoadModelSpecsFromCli:
         assert result == []
         result2 = load_model_specs_from_cli([])
         assert result2 == []
+
+    def test_load_models_with_upstream_reference(self, monkeypatch):
+        """Test loading models with upstream references."""
+        # Define upstreams
+        monkeypatch.setenv("UPSTREAM_AGENTROUTER_BASE_URL", "https://agentrouter.org/v1")
+        monkeypatch.setenv("UPSTREAM_AGENTROUTER_API_KEY_ENV", "AGENTROUTER_API_KEY")
+        monkeypatch.setenv("UPSTREAM_HUBS_BASE_URL", "https://api.hubs.com/v1")
+        monkeypatch.setenv("UPSTREAM_HUBS_API_KEY_ENV", "HUBS_API_KEY")
+
+        # Define models
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,claude45")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM", "agentrouter")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
+        monkeypatch.setenv("MODEL_CLAUDE45_UPSTREAM", "hubs")
+        monkeypatch.setenv("MODEL_CLAUDE45_UPSTREAM_MODEL", "claude-4.5-sonnet")
+
+        specs = load_model_specs_from_env()
+
+        assert len(specs) == 2
+        assert specs[0].key == "gpt5"
+        assert specs[0].upstream_name == "agentrouter"
+        assert specs[0].upstream_base == "https://agentrouter.org/v1"
+        assert specs[0].upstream_key_env == "AGENTROUTER_API_KEY"
+
+        assert specs[1].key == "claude45"
+        assert specs[1].upstream_name == "hubs"
+        assert specs[1].upstream_base == "https://api.hubs.com/v1"
+        assert specs[1].upstream_key_env == "HUBS_API_KEY"
+
+    def test_load_models_without_upstream_uses_global_defaults(self, monkeypatch):
+        """Test loading models without upstream (uses global defaults)."""
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
+
+        specs = load_model_specs_from_env()
+
+        assert len(specs) == 1
+        assert specs[0].upstream_name is None
+        assert specs[0].upstream_base == "https://agentrouter.org/v1"
+        assert specs[0].upstream_key_env == "OPENAI_API_KEY"
+
+    def test_case_insensitive_upstream_name_resolution(self, monkeypatch):
+        """Test case-insensitive upstream name resolution."""
+        monkeypatch.setenv("UPSTREAM_HUBS_BASE_URL", "https://api.hubs.com/v1")
+        monkeypatch.setenv("UPSTREAM_HUBS_API_KEY_ENV", "HUBS_API_KEY")
+
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "claude")
+        monkeypatch.setenv("MODEL_CLAUDE_UPSTREAM", "HUBS")  # Uppercase
+        monkeypatch.setenv("MODEL_CLAUDE_UPSTREAM_MODEL", "claude-4.5-sonnet")
+
+        specs = load_model_specs_from_env()
+
+        assert len(specs) == 1
+        assert specs[0].upstream_name == "hubs"  # Normalized to lowercase
+        assert specs[0].upstream_base == "https://api.hubs.com/v1"
+
+    def test_error_when_referencing_nonexistent_upstream(self, monkeypatch):
+        """Test error when MODEL_<KEY>_UPSTREAM references non-existent upstream."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM", "nonexistent")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
+
+        with pytest.raises(ValueError, match="Model 'gpt5' references unknown upstream 'nonexistent'"):
+            load_model_specs_from_env()
+
+    def test_backward_compatibility_with_existing_configs(self, monkeypatch):
+        """Test backward compatibility with existing single-upstream configs."""
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
+        monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
+
+        specs = load_model_specs_from_env()
+
+        assert len(specs) == 2
+        # Both should use global defaults
+        assert specs[0].upstream_name is None
+        assert specs[0].upstream_base == "https://agentrouter.org/v1"
+        assert specs[0].upstream_key_env == "OPENAI_API_KEY"
+        assert specs[1].upstream_name is None
+        assert specs[1].upstream_base == "https://agentrouter.org/v1"
+        assert specs[1].upstream_key_env == "OPENAI_API_KEY"

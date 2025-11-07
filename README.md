@@ -88,9 +88,44 @@ Configure Droid CLI in `~/.factory/config.json`:
 }
 ```
 
+## Multi-Upstream Configuration
+
+Configure models from multiple upstream providers to access different LLM services through a single proxy:
+
+```bash
+# Define upstream providers
+UPSTREAM_AGENTROUTER_BASE_URL=https://agentrouter.org/v1
+UPSTREAM_AGENTROUTER_API_KEY_ENV=AGENTROUTER_API_KEY
+
+UPSTREAM_HUBS_BASE_URL=https://api.hubs.com/v1
+UPSTREAM_HUBS_API_KEY_ENV=HUBS_API_KEY
+
+# Configure models with upstream references
+PROXY_MODEL_KEYS=gpt5,claude45
+
+MODEL_GPT5_UPSTREAM=agentrouter
+MODEL_GPT5_UPSTREAM_MODEL=gpt-5
+
+MODEL_CLAUDE45_UPSTREAM=hubs
+MODEL_CLAUDE45_UPSTREAM_MODEL=claude-4.5-sonnet
+
+# Set API keys
+AGENTROUTER_API_KEY=sk-your-agentrouter-key
+HUBS_API_KEY=sk-your-hubs-key
+```
+
+**Configuration Precedence:**
+- Models with `MODEL_<KEY>_UPSTREAM` use the specified upstream's base URL and API key
+- Models without `MODEL_<KEY>_UPSTREAM` use global defaults (`OPENAI_BASE_URL`, `OPENAI_API_KEY`)
+- Upstream names are case-insensitive (`HUBS`, `hubs`, `Hubs` all work)
+
+**Backward Compatibility:**
+Existing single-upstream configurations continue to work without changes. Simply omit the `MODEL_<KEY>_UPSTREAM` variable to use global defaults.
+
 ## Features
 
 - **Multi-Model Support**: Run multiple models simultaneously
+- **Multi-Upstream Support**: Aggregate models from different providers
 - **OpenAI-Compatible**: Drop-in replacement for OpenAI API
 - **Reasoning Control**: Adjustable reasoning effort (none/low/medium/high)
 - **Request Telemetry**: Structured JSON logging for observability

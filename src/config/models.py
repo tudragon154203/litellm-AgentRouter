@@ -8,6 +8,35 @@ from __future__ import annotations
 from typing import Dict, Any, Optional
 
 
+class UpstreamSpec:
+    """Configuration for a named upstream provider."""
+
+    def __init__(self, name: str, base_url: str, api_key_env: str):
+        """Initialize UpstreamSpec.
+
+        Args:
+            name: Upstream provider name (e.g., 'agentrouter', 'hubs')
+            base_url: Base URL for the upstream API
+            api_key_env: Environment variable name containing the API key
+
+        Raises:
+            ValueError: If any field is empty
+        """
+        self.name = name
+        self.base_url = base_url
+        self.api_key_env = api_key_env
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate upstream spec parameters."""
+        if not self.name:
+            raise ValueError("Upstream name cannot be empty")
+        if not self.base_url:
+            raise ValueError("Upstream base_url cannot be empty")
+        if not self.api_key_env:
+            raise ValueError("Upstream api_key_env cannot be empty")
+
+
 def derive_alias(upstream_model: str) -> str:
     """Derive public alias from upstream model identifier.
 
@@ -39,6 +68,7 @@ class ModelSpec:
         upstream_base: Optional[str] = None,
         upstream_key_env: Optional[str] = None,
         reasoning_effort: Optional[str] = None,
+        upstream_name: Optional[str] = None,
     ):
         """Initialize ModelSpec.
 
@@ -49,6 +79,7 @@ class ModelSpec:
             upstream_base: Base URL (defaults to global)
             upstream_key_env: API key env var (defaults to global)
             reasoning_effort: Reasoning effort level
+            upstream_name: Named upstream reference (optional, for multi-upstream support)
         """
         self.key = key
         self.alias = alias or derive_alias(upstream_model)
@@ -56,6 +87,7 @@ class ModelSpec:
         self.upstream_base = upstream_base
         self.upstream_key_env = upstream_key_env
         self.reasoning_effort = reasoning_effort
+        self.upstream_name = upstream_name
         self._validate()
 
     def _validate(self) -> None:

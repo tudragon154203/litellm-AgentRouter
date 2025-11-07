@@ -6,9 +6,64 @@ Configuration parsing functionality for LiteLLM proxy launcher.
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import List, Dict
 
-from .models import ModelSpec
+from .models import ModelSpec, UpstreamSpec
+
+
+def parse_upstream_registry() -> Dict[str, UpstreamSpec]:
+    """Parse upstream definitions from environment variables.
+
+    Scans for UPSTREAM_<NAME>_BASE_URL and UPSTREAM_<NAME>_API_KEY_ENV patterns.
+    Upstream names are case-insensitive and stored as lowercase keys.
+
+    Returns:
+        Dictionary mapping lowercase upstream names to UpstreamSpec objects
+
+    Raises:
+        ValueError: If an upstream has only BASE_URL or only API_KEY_ENV
+    """
+    upstreams: Dict[str, Dict[str, str]] = {}
+
+    # Scan environment for UPSTREAM_* variables
+    for env_var, value in os.environ.items():
+        if not env_var.startswith("UPSTREAM_"):
+            continue
+
+        # Parse variable name: UPSTREAM_<NAME>_BASE_URL or UPSTREAM_<NAME>_API_KEY_ENV
+        parts = env_var.split("_", 2)  # Split into ['UPSTREAM', '<NAME>', 'BASE_URL' or 'API_KEY_ENV']
+        if len(parts) < 3:
+            continue
+
+        upstream_name = parts[1].lower()  # Normalize to lowercase
+        suffix = "_".join(parts[2:])  # Rejoin remaining parts (e.g., 'BASE_URL', 'API_KEY_ENV')
+
+        if upstream_name not in upstreams:
+            upstreams[upstream_name] = {}
+
+        if suffix == "BASE_URL":
+            upstreams[upstream_name]["base_url"] = value
+        elif suffix == "API_KEY_ENV":
+            upstreams[upstream_name]["api_key_env"] = value
+
+    # Validate and create UpstreamSpec objects
+    registry: Dict[str, UpstreamSpec] = {}
+    for name, config in upstreams.items():
+        base_url = config.get("base_url")
+        api_key_env = config.get("api_key_env")
+
+        if base_url and api_key_env:
+            registry[name] = UpstreamSpec(name=name, base_url=base_url, api_key_env=api_key_env)
+        elif base_url or api_key_env:
+            # Incomplete upstream definition
+            missing = "API_KEY_ENV" if not api_key_env else "BASE_URL"
+            raise ValueError(
+                f"Upstream '{name}' is incomplete. "
+                f"Both UPSTREAM_{name.upper()}_BASE_URL and UPSTREAM_{name.upper()}_API_KEY_ENV must be defined. "
+                f"Missing: UPSTREAM_{name.upper()}_{missing}"
+            )
+
+    return registry
 
 
 def parse_model_spec(spec_str: str) -> ModelSpec:
@@ -53,6 +108,9 @@ def load_model_specs_from_env() -> List[ModelSpec]:
     keys = [key.strip() for key in proxy_model_keys.split(',') if key.strip()]
     model_specs: List[ModelSpec] = []
 
+    # Parse upstream registry
+    upstream_registry = parse_upstream_registry()
+
     # Global defaults
     global_base = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
     global_key_env = "OPENAI_API_KEY"
@@ -70,12 +128,39 @@ def load_model_specs_from_env() -> List[ModelSpec]:
             )
 
         upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
-        upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
-        upstream_key_env = os.getenv(f"{prefix}UPSTREAM_KEY_ENV") or global_key_env
         reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
 
         if not upstream_model:
             raise ValueError(f"Missing environment variable: {prefix}UPSTREAM_MODEL")
+
+        # Check for MODEL_<KEY>_UPSTREAM to reference named upstream
+        upstream_name_raw = os.getenv(f"{prefix}UPSTREAM")
+        upstream_name = None
+        upstream_base = None
+        upstream_key_env = None
+
+        if upstream_name_raw:
+            # Normalize upstream name to lowercase for lookup
+            upstream_name = upstream_name_raw.lower()
+
+            # Look up upstream in registry
+            if upstream_name not in upstream_registry:
+                available = ", ".join(sorted(upstream_registry.keys())) if upstream_registry else "none"
+                raise ValueError(
+                    f"Model '{key}' references unknown upstream '{upstream_name_raw}'. "
+                    f"Available upstreams: {available}. "
+                    f"Define UPSTREAM_{upstream_name_raw.upper()}_BASE_URL and "
+                    f"UPSTREAM_{upstream_name_raw.upper()}_API_KEY_ENV."
+                )
+
+            # Resolve from upstream registry
+            upstream_spec = upstream_registry[upstream_name]
+            upstream_base = upstream_spec.base_url
+            upstream_key_env = upstream_spec.api_key_env
+        else:
+            # Fall back to legacy per-model or global defaults
+            upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
+            upstream_key_env = os.getenv(f"{prefix}UPSTREAM_KEY_ENV") or global_key_env
 
         # Create ModelSpec with alias=None to auto-derive from upstream_model
         model_specs.append(
@@ -86,10 +171,47 @@ def load_model_specs_from_env() -> List[ModelSpec]:
                 upstream_base=upstream_base,
                 upstream_key_env=upstream_key_env,
                 reasoning_effort=reasoning_effort,
+                upstream_name=upstream_name,
             )
         )
 
     return model_specs
+
+
+def validate_model_specs(model_specs: List[ModelSpec]) -> None:
+    """Validate model specifications for conflicts.
+
+    Checks for duplicate upstream model names across all models.
+
+    Args:
+        model_specs: List of ModelSpec objects to validate
+
+    Raises:
+        ValueError: If duplicate upstream model names are detected
+    """
+    upstream_model_map: Dict[str, List[str]] = {}
+
+    # Collect all upstream_model values and their associated keys
+    for spec in model_specs:
+        upstream_model = spec.upstream_model
+        if upstream_model not in upstream_model_map:
+            upstream_model_map[upstream_model] = []
+        upstream_model_map[upstream_model].append(spec.key)
+
+    # Check for duplicates
+    duplicates = {model: keys for model, keys in upstream_model_map.items() if len(keys) > 1}
+
+    if duplicates:
+        error_parts = []
+        for upstream_model, keys in duplicates.items():
+            keys_str = ", ".join(keys)
+            error_parts.append(f"'{upstream_model}' found in models: {keys_str}")
+
+        raise ValueError(
+            f"Duplicate upstream model name(s) detected. "
+            f"Each model must have a unique upstream model name. "
+            f"Conflicts: {'; '.join(error_parts)}"
+        )
 
 
 def load_model_specs_from_cli(model_spec_args: List[str] | None) -> List[ModelSpec]:
@@ -136,6 +258,13 @@ def prepare_config(args) -> tuple[str, bool]:
         except ValueError as e:
             print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)
+
+    # Validate model specifications
+    try:
+        validate_model_specs(model_specs)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Check for missing environment variables in model specs
     for spec in model_specs:

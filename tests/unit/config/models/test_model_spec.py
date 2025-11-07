@@ -93,3 +93,36 @@ class TestModelSpecValidation:
         spec = ModelSpec(key="test", alias="test-alias", upstream_model="gpt-4")
         spec.__post_init__()
         assert spec.upstream_model == "gpt-4"
+
+    def test_model_spec_with_upstream_name(self):
+        """Test ModelSpec with upstream_name for multi-upstream support."""
+        spec = ModelSpec(
+            key="test",
+            alias="test-model",
+            upstream_model="gpt-5",
+            upstream_name="agentrouter"
+        )
+        assert spec.upstream_name == "agentrouter"
+
+    def test_model_spec_without_upstream_name(self):
+        """Test ModelSpec without upstream_name (backward compatibility)."""
+        spec = ModelSpec(
+            key="test",
+            alias="test-model",
+            upstream_model="gpt-5"
+        )
+        assert spec.upstream_name is None
+
+    def test_model_spec_with_upstream_name_and_legacy_fields(self):
+        """Test ModelSpec with both upstream_name and legacy upstream_base/upstream_key_env."""
+        spec = ModelSpec(
+            key="test",
+            alias="test-model",
+            upstream_model="gpt-5",
+            upstream_name="agentrouter",
+            upstream_base="https://agentrouter.org/v1",
+            upstream_key_env="AGENTROUTER_API_KEY"
+        )
+        assert spec.upstream_name == "agentrouter"
+        assert spec.upstream_base == "https://agentrouter.org/v1"
+        assert spec.upstream_key_env == "AGENTROUTER_API_KEY"
