@@ -269,12 +269,18 @@ def prepare_config(args) -> tuple[str, bool]:
 
     # Check for missing environment variables in model specs
     for spec in model_specs:
-        if spec.upstream_key_env and not os.getenv(spec.upstream_key_env):
-            print(
-                f"WARNING: Environment variable '{spec.upstream_key_env}' "
-                f"for model '{spec.alias}' is not set",
-                file=sys.stderr
-            )
+        # Check if upstream_key_env is an environment variable reference or a direct key
+        if spec.upstream_key_env:
+            # If it starts with 'sk-' or is long, it's a direct API key value (not an env var name)
+            is_direct_key = spec.upstream_key_env.startswith("sk-") or len(spec.upstream_key_env) > 20
+
+            if not is_direct_key and not os.getenv(spec.upstream_key_env):
+                # It's an env var name that's not set
+                print(
+                    f"WARNING: Environment variable '{spec.upstream_key_env}' "
+                    f"for model '{spec.alias}' is not set",
+                    file=sys.stderr
+                )
 
     # Get configuration parameters from args with defaults
     global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"

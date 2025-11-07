@@ -62,8 +62,8 @@ class TestRegistryBranches:
 
         install_middlewares(app, model_specs)
 
-        # Should add both middlewares
-        assert len(middlewares_added) == 2
+        # Should add three middlewares: StreamingControl, ReasoningFilter, and Telemetry
+        assert len(middlewares_added) == 3
 
         # Should create alias lookup
         assert hasattr(app.state, "litellm_telemetry_alias_lookup")

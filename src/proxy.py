@@ -30,10 +30,11 @@ def start_proxy(args: argparse.Namespace, config_path: Path) -> None:
     try:
         from .middleware.registry import install_middlewares
         model_specs = getattr(args, "model_specs", None) or []
+        allow_streaming = getattr(args, "streaming", True)
         # Import LiteLLM app and install middlewares directly
         from litellm.proxy import proxy_server
         if hasattr(proxy_server, 'app'):
-            install_middlewares(proxy_server.app, model_specs)
+            install_middlewares(proxy_server.app, model_specs, allow_streaming=allow_streaming)
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
