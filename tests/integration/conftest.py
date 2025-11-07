@@ -46,7 +46,9 @@ def pytest_collection_modifyitems(config, items):
     """Modify test collection to add markers based on test content."""
     for item in items:
         # Add real_api marker to tests that make actual API calls
-        if "real_gpt5_api" in str(item.fspath) and "test_" in item.name:
+        real_api_tests = ["real_gpt5_api", "real_claude45_api", "real_gemini25_api", 
+                          "real_deepseek_api", "real_glm_api", "real_grok_api"]
+        if any(test_name in str(item.fspath) for test_name in real_api_tests) and "test_" in item.name:
             item.add_marker(pytest.mark.real_api)
             item.add_marker(pytest.mark.slow)
 
