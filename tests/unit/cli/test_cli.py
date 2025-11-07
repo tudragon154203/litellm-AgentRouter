@@ -175,18 +175,18 @@ class TestParseArgs:
 
     def test_parse_args_streaming_from_env_true(self):
         """Test parse_args with streaming from environment variable (true)."""
-        with patch.dict(os.environ, {"IS_STREAMING": "true"}):
+        with patch.dict(os.environ, {"STREAMING_ENABLE": "true"}):
             args = parse_args([])
             assert args.streaming is True
 
     def test_parse_args_streaming_from_env_false(self):
         """Test parse_args with streaming from environment variable (false)."""
-        with patch.dict(os.environ, {"IS_STREAMING": "false"}):
+        with patch.dict(os.environ, {"STREAMING_ENABLE": "false"}):
             args = parse_args([])
             assert args.streaming is False
 
     def test_parse_args_streaming_from_env_various_formats(self):
-        """Test parse_args with various boolean string formats for IS_STREAMING."""
+        """Test parse_args with various boolean string formats for STREAMING_ENABLE."""
         test_cases = [
             ("1", True),
             ("true", True),
@@ -203,7 +203,7 @@ class TestParseArgs:
         ]
 
         for env_value, expected in test_cases:
-            with patch.dict(os.environ, {"IS_STREAMING": env_value}):
+            with patch.dict(os.environ, {"STREAMING_ENABLE": env_value}):
                 args = parse_args([])
                 assert args.streaming is expected, f"Failed for env value: {env_value}"
 
@@ -222,8 +222,8 @@ class TestParseArgs:
             assert args.streaming is False
 
     def test_parse_args_streaming_flag_overrides_env(self):
-        """Test that --streaming flag overrides IS_STREAMING environment variable."""
-        env_vars = {"IS_STREAMING": "false"}
+        """Test that --streaming flag overrides STREAMING_ENABLE environment variable."""
+        env_vars = {"STREAMING_ENABLE": "false"}
         argv = ["--streaming"]
 
         with patch.dict(os.environ, env_vars):
@@ -231,8 +231,8 @@ class TestParseArgs:
             assert args.streaming is True
 
     def test_parse_args_no_streaming_flag_overrides_env(self):
-        """Test that --no-streaming flag overrides IS_STREAMING environment variable."""
-        env_vars = {"IS_STREAMING": "true"}
+        """Test that --no-streaming flag overrides STREAMING_ENABLE environment variable."""
+        env_vars = {"STREAMING_ENABLE": "true"}
         argv = ["--no-streaming"]
 
         with patch.dict(os.environ, env_vars):
@@ -249,7 +249,7 @@ class TestParseArgs:
             "LITELLM_MASTER_KEY": "sk-env-master",
             "LITELLM_HOST": "127.0.0.1",
             "PORT": "8080",
-            "IS_STREAMING": "false",
+            "STREAMING_ENABLE": "false",
         }
 
         argv = [
