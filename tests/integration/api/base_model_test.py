@@ -197,9 +197,18 @@ class BaseModelTest:
         tool_call = message.tool_calls[0]
         assert tool_call.function.name == "get_weather"
 
-        args = json.loads(tool_call.function.arguments)
-        assert "location" in args
-        assert "paris" in args["location"].lower()
+        # Parse arguments - handle both string and dict formats
+        args_str = tool_call.function.arguments
+        if isinstance(args_str, str):
+            try:
+                args = json.loads(args_str)
+            except json.JSONDecodeError as e:
+                pytest.fail(f"Tool arguments are not valid JSON: {repr(args_str)}. Error: {e}")
+        else:
+            args = args_str
+
+        assert "location" in args, f"Expected 'location' in args, got: {args}"
+        assert "paris" in args["location"].lower(), f"Expected 'paris' in location, got: {args['location']}"
 
     def test_tool_calling_optional(self):
         """Test that model can choose not to use tools when not needed."""

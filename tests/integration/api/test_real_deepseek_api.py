@@ -14,4 +14,5 @@ class TestRealDeepSeekAPI(BaseModelTest):
         api_key_env='OPENAI_API_KEY',
         base_url_env='OPENAI_BASE_URL',
         default_base_url='https://agentrouter.org/v1',
+        supports_tool_calling=False,  # Tool arguments are truncated via agentrouter
     )
