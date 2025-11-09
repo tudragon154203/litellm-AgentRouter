@@ -45,15 +45,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Base URL for the upstream OpenAI-compatible endpoint.",
     )
     parser.add_argument(
-        "--upstream-key-env",
-        dest="upstream_key_env",
-        default="OPENAI_API_KEY",
-        help=(
-            "Environment variable that stores the upstream API key. "
-            "Set to blank to skip setting an API key in the generated config."
-        ),
-    )
-    parser.add_argument(
         "--master-key",
         dest="master_key",
         default=os.getenv("LITELLM_MASTER_KEY", "sk-local-master"),
@@ -142,7 +133,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="append",
         help=(
             "Model specification for multi-model proxy. Format: "
-            "key=xxx,alias=xxx,upstream=xxx[,base=xxx][,key_env=xxx][,reasoning=xxx]. "
+            "key=xxx,alias=xxx,upstream=xxx[,base=xxx][,reasoning=xxx]. "
             "Can be used multiple times."
         ),
     )

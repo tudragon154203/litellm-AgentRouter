@@ -19,7 +19,6 @@ def make_spec(
     upstream_model: str,
     reasoning_effort: str | None = None,
     upstream_base: str | None = None,
-    upstream_key_env: str | None = None,
 ) -> ModelSpec:
     """Helper to create a ModelSpec with defaults."""
     return ModelSpec(
@@ -27,7 +26,6 @@ def make_spec(
         alias=alias,
         upstream_model=upstream_model,
         upstream_base=upstream_base,
-        upstream_key_env=upstream_key_env,
         reasoning_effort=reasoning_effort,
     )
 
@@ -46,7 +44,6 @@ class TestRenderConfig:
         config_text = render_config(
             model_specs=[spec],
             global_upstream_base="https://agentrouter.org/v1",
-            global_upstream_key_env="OPENAI_API_KEY",
             master_key="sk-master",
             drop_params=True,
             streaming=True,
@@ -69,7 +66,6 @@ class TestRenderConfig:
         config_text = render_config(
             model_specs=[spec],
             global_upstream_base="https://agentrouter.org/v1",
-            global_upstream_key_env="OPENAI_API_KEY",
             master_key=None,
             drop_params=True,
             streaming=False,
@@ -78,25 +74,23 @@ class TestRenderConfig:
         parsed = yaml.safe_load(config_text)
         assert parsed["model_list"][0]["litellm_params"]["reasoning_effort"] == "medium"
 
-    def test_render_config_with_no_api_key(self):
-        """Test rendering config when no upstream key env is specified."""
+    def test_render_config_without_api_key_field(self):
+        """Test rendering config does not include api_key field."""
         model_spec = ModelSpec(
             key="test",
             alias="test-model",
-            upstream_model="gpt-5",
-            upstream_key_env=None
+            upstream_model="gpt-5"
         )
 
         config_text = render_config(
             model_specs=[model_spec],
             global_upstream_base="https://api.openai.com",
-            global_upstream_key_env=None,
             master_key="sk-test",
             drop_params=True,
             streaming=True
         )
 
-        assert "api_key: null" in config_text
+        assert "api_key" not in config_text
 
     def test_render_config_with_reasoning_unsupported_model(self):
         """Test rendering config with reasoning effort for unsupported model."""
@@ -114,7 +108,6 @@ class TestRenderConfig:
                 render_config(
                     model_specs=[model_spec],
                     global_upstream_base="https://api.openai.com",
-                    global_upstream_key_env="API_KEY",
                     master_key="sk-test",
                     drop_params=True,
                     streaming=True
@@ -131,7 +124,6 @@ class TestRenderConfig:
             render_config(
                 model_specs=[],
                 global_upstream_base="https://api.openai.com/v1",
-                global_upstream_key_env="OPENAI_API_KEY",
                 master_key="sk-test",
                 drop_params=False,
                 streaming=True
@@ -143,7 +135,6 @@ class TestRenderConfig:
             render_config(
                 model_specs=None,
                 global_upstream_base="https://api.openai.com/v1",
-                global_upstream_key_env="OPENAI_API_KEY",
                 master_key="sk-test",
                 drop_params=False,
                 streaming=True

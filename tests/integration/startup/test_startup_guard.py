@@ -63,7 +63,6 @@ class TestStartupGuard:
             # Set default values for other expected args
             args.model_specs = None
             args.upstream_base = None
-            args.upstream_key_env = None
 
             # This should work without import errors
             result = prepare_config(args)
@@ -124,7 +123,6 @@ class TestStartupGuard:
             args.streaming = False
             args.model_specs = None
             args.upstream_base = None
-            args.upstream_key_env = None
 
             config_result = prepare_config(args)
             # Extract config path or text from tuple

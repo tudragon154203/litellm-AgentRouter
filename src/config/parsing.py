@@ -36,7 +36,6 @@ def parse_model_spec(spec_str: str) -> ModelSpec:
         alias=alias,
         upstream_model=parts['upstream'],
         upstream_base=parts.get('base'),
-        upstream_key_env=parts.get('key_env'),
         reasoning_effort=parts.get('reasoning'),
     )
 
@@ -55,7 +54,6 @@ def load_model_specs_from_env() -> List[ModelSpec]:
 
     # Global defaults
     global_base = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
-    global_key_env = "OPENAI_API_KEY"
 
     for key in keys:
         prefix = f"MODEL_{key.upper()}_"
@@ -71,7 +69,6 @@ def load_model_specs_from_env() -> List[ModelSpec]:
 
         upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
         upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
-        upstream_key_env = os.getenv(f"{prefix}UPSTREAM_KEY_ENV") or global_key_env
         reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
 
         if not upstream_model:
@@ -84,7 +81,6 @@ def load_model_specs_from_env() -> List[ModelSpec]:
                 alias=None,  # Let ModelSpec derive alias from upstream_model
                 upstream_model=upstream_model,
                 upstream_base=upstream_base,
-                upstream_key_env=upstream_key_env,
                 reasoning_effort=reasoning_effort,
             )
         )
@@ -112,7 +108,6 @@ def prepare_config(args) -> tuple[str, bool]:
         - is_generated: True if config was generated from specs/env, False if from file
     """
     from pathlib import Path
-    import os
     import sys
     from .rendering import render_config
 
@@ -137,18 +132,8 @@ def prepare_config(args) -> tuple[str, bool]:
             print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)
 
-    # Check for missing environment variables in model specs
-    for spec in model_specs:
-        if spec.upstream_key_env and not os.getenv(spec.upstream_key_env):
-            print(
-                f"WARNING: Environment variable '{spec.upstream_key_env}' "
-                f"for model '{spec.alias}' is not set",
-                file=sys.stderr
-            )
-
     # Get configuration parameters from args with defaults
     global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"
-    global_upstream_key_env = getattr(args, 'upstream_key_env', None) or "OPENAI_API_KEY"
     master_key = None if getattr(args, 'no_master_key', False) else getattr(args, 'master_key', "sk-local-master")
     drop_params = getattr(args, 'drop_params', True)
     streaming = getattr(args, 'streaming', True)
@@ -157,7 +142,6 @@ def prepare_config(args) -> tuple[str, bool]:
     config_text = render_config(
         model_specs=model_specs,
         global_upstream_base=global_upstream_base,
-        global_upstream_key_env=global_upstream_key_env,
         master_key=master_key,
         drop_params=drop_params,
         streaming=streaming,

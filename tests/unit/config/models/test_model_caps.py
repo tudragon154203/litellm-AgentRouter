@@ -16,7 +16,6 @@ def make_spec(
     upstream_model: str,
     reasoning_effort: str | None = None,
     upstream_base: str | None = None,
-    upstream_key_env: str | None = None,
 ) -> ModelSpec:
     """Helper to create a ModelSpec with defaults."""
     return ModelSpec(
@@ -24,7 +23,6 @@ def make_spec(
         alias=alias,
         upstream_model=upstream_model,
         upstream_base=upstream_base,
-        upstream_key_env=upstream_key_env,
         reasoning_effort=reasoning_effort,
     )
 
@@ -68,7 +66,6 @@ class TestGrokCodeFast1Integration:
         config_text = render_config(
             model_specs=[spec],
             global_upstream_base="https://api.x.ai/v1",
-            global_upstream_key_env="XAI_API_KEY",
             master_key="sk-test",
             drop_params=True,
             streaming=True,
@@ -103,7 +100,6 @@ class TestGLM46Integration:
         config_text = render_config(
             model_specs=[spec],
             global_upstream_base="https://open.bigmodel.cn/api/paas/v4",
-            global_upstream_key_env="GLM_API_KEY",
             master_key="sk-test",
             drop_params=True,
             streaming=True,
@@ -125,7 +121,6 @@ class TestGLM46Integration:
         config_text = render_config(
             model_specs=[spec],
             global_upstream_base="https://open.bigmodel.cn/api/paas/v4",
-            global_upstream_key_env="GLM_API_KEY",
             master_key="sk-test",
             drop_params=True,
             streaming=True,

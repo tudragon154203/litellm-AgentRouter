@@ -24,7 +24,6 @@ class TestParseArgs:
             assert args.alias == "gpt-5"
             assert args.model == "gpt-5"
             assert args.upstream_base == "https://agentrouter.org/v1"
-            assert args.upstream_key_env == "OPENAI_API_KEY"
             assert args.master_key == "sk-local-master"
             assert args.host == "0.0.0.0"
             assert args.port == 4000
@@ -43,7 +42,6 @@ class TestParseArgs:
             "--alias", "custom-model",
             "--model", "gpt-3.5-turbo",
             "--upstream-base", "https://custom.api.com/v1",
-            "--upstream-key-env", "CUSTOM_API_KEY",
             "--master-key", "sk-custom-master",
             "--host", "127.0.0.1",
             "--port", "8080",
@@ -63,7 +61,6 @@ class TestParseArgs:
             assert args.alias == "custom-model"
             assert args.model == "gpt-3.5-turbo"
             assert args.upstream_base == "https://custom.api.com/v1"
-            assert args.upstream_key_env == "CUSTOM_API_KEY"
             assert args.master_key == "sk-custom-master"
             assert args.host == "127.0.0.1"
             assert args.port == 8080
@@ -257,7 +254,6 @@ class TestParseArgs:
             "--alias", "cli-model",
             "--model", "gpt-4",
             "--upstream-base", "https://cli.api.com/v1",
-            "--upstream-key-env", "CLI_API_KEY",
             "--master-key", "sk-cli-master",
             "--host", "localhost",
             "--port", "9000",
@@ -274,7 +270,6 @@ class TestParseArgs:
             assert args.alias == "cli-model"
             assert args.model == "gpt-4"
             assert args.upstream_base == "https://cli.api.com/v1"
-            assert args.upstream_key_env == "CLI_API_KEY"
             assert args.master_key == "sk-cli-master"
             assert args.host == "localhost"
             assert args.port == 9000
@@ -283,15 +278,6 @@ class TestParseArgs:
             assert args.streaming is True  # overridden by --streaming (env was false)
 
             # Debug and detailed_debug are now hardcoded to False
-
-    def test_parse_args_upstream_key_env_empty_string(self):
-        """Test parse_args with empty string for upstream_key_env."""
-        argv = ["--upstream-key-env", ""]
-
-        with patch.dict(os.environ, {}, clear=True):
-            args = parse_args(argv)
-
-            assert args.upstream_key_env == ""
 
     def test_parse_args_no_drop_params_flag(self):
         """Test --no-drop-params flag behavior."""

@@ -23,7 +23,6 @@ def make_spec(
     upstream_model: str,
     reasoning_effort: str | None = None,
     upstream_base: str | None = None,
-    upstream_key_env: str | None = None,
 ) -> ModelSpec:
     """Helper to create a ModelSpec with defaults."""
     return ModelSpec(
@@ -31,7 +30,6 @@ def make_spec(
         alias=alias,
         upstream_model=upstream_model,
         upstream_base=upstream_base,
-        upstream_key_env=upstream_key_env,
         reasoning_effort=reasoning_effort,
     )
 
@@ -52,7 +50,6 @@ class TestPrepareConfig:
                 )
             ],
             upstream_base=None,
-            upstream_key_env=None,
             master_key="sk-cli",
             no_master_key=False,
             drop_params=True,
@@ -80,7 +77,6 @@ class TestPrepareConfig:
             config=None,
             model_specs=[],
             upstream_base=None,
-            upstream_key_env=None,
             master_key=None,
             no_master_key=True,
             drop_params=True,
@@ -92,7 +88,6 @@ class TestPrepareConfig:
         assert is_generated is True
         parsed = yaml.safe_load(config_text)
         assert parsed["model_list"][0]["model_name"] == "gpt-5"
-        assert parsed["model_list"][0]["litellm_params"]["api_key"] == "os.environ/OPENAI_API_KEY"
 
     def test_prepare_config_missing_env_errors(self, monkeypatch):
         """Missing environment configuration should exit with error."""
@@ -101,7 +96,6 @@ class TestPrepareConfig:
             config=None,
             model_specs=[],
             upstream_base=None,
-            upstream_key_env=None,
             master_key=None,
             no_master_key=True,
             drop_params=True,
@@ -122,7 +116,6 @@ class TestPrepareConfig:
             config=config_path,
             model_specs=None,
             upstream_base=None,
-            upstream_key_env=None,
             master_key="unused",
             no_master_key=False,
             drop_params=True,
@@ -145,36 +138,6 @@ class TestPrepareConfig:
 
         with pytest.raises(FileNotFoundError, match="Config file not found: nonexistent.yaml"):
             prepare_config(mock_args)
-
-    def test_prepare_config_with_missing_env_vars(self):
-        """Test prepare_config with model specs having missing env vars."""
-        from unittest.mock import MagicMock
-        mock_args = MagicMock()
-        mock_args.config = None
-        mock_args.model_specs = [
-            ModelSpec(
-                key="test",
-                alias="test-model",
-                upstream_model="gpt-5",
-                upstream_key_env="MISSING_API_KEY"
-            )
-        ]
-        mock_args.no_master_key = False
-        mock_args.master_key = "sk-local-master"
-        mock_args.upstream_base = None
-        mock_args.upstream_key_env = None
-        mock_args.drop_params = True
-        mock_args.streaming = True
-        mock_args.print_config = False
-
-        with patch('builtins.print') as mock_print:
-            with patch.dict(os.environ, {}, clear=True):
-                config_text, is_generated = prepare_config(mock_args)
-
-                mock_print.assert_called()
-                warning_call = str(mock_print.call_args[0][0])
-                assert "WARNING: Environment variable 'MISSING_API_KEY'" in warning_call
-                assert "for model 'test-model' is not set" in warning_call
 
 
 class TestTemporaryConfig:

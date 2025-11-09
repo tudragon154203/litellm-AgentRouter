@@ -78,16 +78,6 @@ class TestModelSpecValidation:
         )
         assert spec.upstream_base == "https://custom.api.com/v1"
 
-    def test_model_spec_with_upstream_key_env(self):
-        """Test ModelSpec with custom API key environment variable."""
-        spec = ModelSpec(
-            key="custom",
-            alias="custom-model",
-            upstream_model="gpt-4",
-            upstream_key_env="CUSTOM_API_KEY"
-        )
-        assert spec.upstream_key_env == "CUSTOM_API_KEY"
-
     def test_model_spec_post_init(self):
         """Test __post_init__ method for legacy compatibility."""
         spec = ModelSpec(key="test", alias="test-alias", upstream_model="gpt-4")

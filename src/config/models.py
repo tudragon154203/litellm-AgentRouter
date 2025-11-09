@@ -37,7 +37,6 @@ class ModelSpec:
         upstream_model: str,
         alias: Optional[str] = None,
         upstream_base: Optional[str] = None,
-        upstream_key_env: Optional[str] = None,
         reasoning_effort: Optional[str] = None,
     ):
         """Initialize ModelSpec.
@@ -47,14 +46,12 @@ class ModelSpec:
             alias: Public model name exposed by proxy (auto-derived if not provided)
             upstream_model: Upstream provider model ID
             upstream_base: Base URL (defaults to global)
-            upstream_key_env: API key env var (defaults to global)
             reasoning_effort: Reasoning effort level
         """
         self.key = key
         self.alias = alias or derive_alias(upstream_model)
         self.upstream_model = upstream_model
         self.upstream_base = upstream_base
-        self.upstream_key_env = upstream_key_env
         self.reasoning_effort = reasoning_effort
         self._validate()
 
