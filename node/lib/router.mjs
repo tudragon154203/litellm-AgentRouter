@@ -94,7 +94,7 @@ export class NodeRequestRouter {
     logEvent(this.logger, {
       event: "request_completed",
       status,
-      duration_ms: Date.now() - startTime,
+      duration_s: ((Date.now() - startTime) / 1000).toFixed(2),
       request_id: requestId,
     });
   }
