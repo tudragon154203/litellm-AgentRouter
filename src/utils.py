@@ -32,8 +32,8 @@ def quote(value: str) -> str:
 def build_user_agent(cli_version: str | None = None) -> str:
     """Return the canonical CLI user agent string for upstream requests."""
     version = cli_version or os.getenv("CLI_VERSION", "0.0.14")
-    os_name = platform.system().lower()
-    architecture = platform.machine() or "unknown"
+    os_name = sys.platform
+    architecture = os.getenv("PROCESSOR_ARCHITECTURE", "unknown")
     return f"QwenCode/{version} ({os_name}; {architecture})"
 
 
