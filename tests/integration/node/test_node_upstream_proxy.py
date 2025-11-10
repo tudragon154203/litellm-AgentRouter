@@ -63,13 +63,17 @@ def test_node_upstream_proxy_end_to_end(tmp_path):
     if shutil.which("node") is None:
         pytest.skip("Node.js runtime not available")
 
+    # Skip if NODE_UPSTREAM_PROXY_ENABLE is set (session fixture is running)
+    if os.environ.get("NODE_UPSTREAM_PROXY_ENABLE"):
+        pytest.skip("Skipping to avoid conflict with session-scoped Node proxy")
+
     upstream_port = _find_free_port()
     upstream_server = ThreadingHTTPServer(("127.0.0.1", upstream_port), MockUpstreamHandler)
     upstream_server.received: list[dict[str, object]] = []
     upstream_thread = threading.Thread(target=upstream_server.serve_forever, daemon=True)
     upstream_thread.start()
 
-    node_port = 4000  # Node proxy always uses port 4000
+    node_port = 4000  # Node proxy uses port 4000
     node_env = os.environ.copy()
     node_env.update({
         "OPENAI_BASE_URL": f"http://127.0.0.1:{upstream_port}/v1",
