@@ -64,6 +64,7 @@ class TestMultiModelIntegration:
             "OPENAI_BASE_URL": "https://custom.api.com",
             "OPENAI_API_KEY": "sk-custom-key",
             "SKIP_PREREQ_CHECK": "1",
+            "NODE_UPSTREAM_PROXY_ENABLE": "0",  # Disable Node proxy to use custom upstream directly
         }
 
         result = subprocess.run(

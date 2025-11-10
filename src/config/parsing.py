@@ -132,12 +132,17 @@ def prepare_config(args) -> tuple[str, bool]:
             sys.exit(1)
 
     # Get configuration parameters from args with defaults
-    node_proxy_enabled = getattr(args, "node_upstream_proxy_enabled", True)
-    node_proxy_port = getattr(args, "node_proxy_port", 4001)
-    if node_proxy_enabled:
-        global_upstream_base = f"http://127.0.0.1:{node_proxy_port}/v1"
+    # If a custom upstream_base is provided via CLI, use it directly (disable Node proxy routing)
+    custom_upstream_base = getattr(args, 'upstream_base', None)
+    if custom_upstream_base:
+        global_upstream_base = custom_upstream_base
     else:
-        global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"
+        # Otherwise, check if Node proxy is enabled (default: True)
+        node_proxy_enabled = getattr(args, "node_upstream_proxy_enabled", True)
+        if node_proxy_enabled:
+            global_upstream_base = "http://127.0.0.1:4000/v1"  # Node proxy always uses port 4000
+        else:
+            global_upstream_base = "https://agentrouter.org/v1"
     master_key = None if getattr(args, 'no_master_key', False) else getattr(args, 'master_key', "sk-local-master")
     drop_params = getattr(args, 'drop_params', True)
     streaming = getattr(args, 'streaming', True)

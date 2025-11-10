@@ -3,6 +3,8 @@
     "openai": "^6.8.1"
   },
   "scripts": {
-    "test": "node --test node/tests/upstream-proxy.test.mjs"
+    "test": "node --test node/tests/unit/*.test.mjs node/tests/integration/*.test.mjs",
+    "test:unit": "node --test node/tests/unit/*.test.mjs",
+    "test:integration": "node --test node/tests/integration/*.test.mjs"
   }
 }

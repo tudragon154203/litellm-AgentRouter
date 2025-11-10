@@ -31,6 +31,7 @@ class TestEntrypointIntegration:
         monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-local-master")
         monkeypatch.setenv("LITELLM_HOST", "0.0.0.0")
         monkeypatch.setenv("PORT", "4000")
+        monkeypatch.setenv("NODE_UPSTREAM_PROXY_ENABLE", "0")  # Disable Node proxy for this test
 
         # Use a temporary file for config
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
