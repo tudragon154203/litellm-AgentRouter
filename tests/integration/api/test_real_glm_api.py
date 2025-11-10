@@ -17,8 +17,16 @@ class TestRealGLMAPI:
         runtime_config.ensure_loaded()
         cls.api_key = runtime_config.get_str("OPENAI_API_KEY")
         cls.base_url = runtime_config.get_str("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        cls.use_node_proxy = runtime_config.get_bool("NODE_UPSTREAM_PROXY_ENABLE", False)
+
         if not cls.api_key:
             pytest.skip("OPENAI_API_KEY environment variable not set")
+
+        # If Node proxy is enabled, route through localhost
+        # The actual Node proxy is started by the session-scoped fixture
+        if cls.use_node_proxy:
+            cls.base_url = "http://127.0.0.1:4000/v1"
+
         litellm.drop_params = True
 
     def _call_glm_not_stream(self, **kwargs):
