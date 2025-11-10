@@ -9,6 +9,7 @@
 - Use descriptive variable names that clearly indicate their purpose and data type (e.g., `user_id` instead of `uid`, `is_authenticated` instead of `auth`).
 - Record assumptions, outstanding questions, and follow-up items so the next contributor (human or agent) has full context.
 - Prefer using centralized config src\config\config.py instead of os.getenv
+- Source code should follow SOLID principles
 
 ## Codebase Familiarity
 

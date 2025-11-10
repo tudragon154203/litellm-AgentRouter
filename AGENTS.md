@@ -9,6 +9,7 @@
 - Use descriptive variable names that clearly indicate their purpose and data type (e.g., `user_id` instead of `uid`, `is_authenticated` instead of `auth`).
 - Document any assumptions, verification steps, and follow-up actions so future agents can continue seamlessly.
 - Prefer using centralized config src\config\config.py instead of os.getenv
+- Source code should follow SOLID principles
 
 ## Architecture Knowledge
 
