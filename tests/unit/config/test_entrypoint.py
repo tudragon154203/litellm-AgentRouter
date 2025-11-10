@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+"""
+Unit tests for Docker entrypoint module.
+"""
+
+from __future__ import annotations
+
+import sys
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
+from src.config.entrypoint import (
+    main,
+    mask_config_output,
+    mask_sensitive_value,
+    validate_environment,
+    write_config_file,
+)
+
+
+class TestValidateEnvironment:
+    """Tests for validate_environment function."""
+
+    def test_validate_environment_success(self, monkeypatch):
+        """Test that validation passes with valid PROXY_MODEL_KEYS."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
+        # Should not raise
+        validate_environment()
+
+    def test_validate_environment_missing_proxy_keys(self, monkeypatch, capsys):
+        """Test that validation fails when PROXY_MODEL_KEYS is missing."""
+        monkeypatch.delenv("PROXY_MODEL_KEYS", raising=False)
+
+        with pytest.raises(SystemExit) as exc_info:
+            validate_environment()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ERROR: PROXY_MODEL_KEYS must be set" in captured.err
+
+    def test_validate_environment_empty_proxy_keys(self, monkeypatch, capsys):
+        """Test that validation fails when PROXY_MODEL_KEYS is empty."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "")
+
+        with pytest.raises(SystemExit) as exc_info:
+            validate_environment()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ERROR: PROXY_MODEL_KEYS must be set" in captured.err
+
+
+class TestMaskSensitiveValue:
+    """Tests for mask_sensitive_value function."""
+
+    def test_mask_long_value(self):
+        """Test masking a long sensitive value."""
+        result = mask_sensitive_value("sk-1234567890abcdef")
+        assert result == "sk-1***ef"
+
+    def test_mask_short_value(self):
+        """Test masking a short sensitive value."""
+        result = mask_sensitive_value("short")
+        assert result == "shor***"
+
+    def test_mask_very_short_value(self):
+        """Test masking a very short value."""
+        result = mask_sensitive_value("abc")
+        assert result == "abc***"
+
+    def test_mask_custom_visible_chars(self):
+        """Test masking with custom visible character counts."""
+        result = mask_sensitive_value("sk-1234567890abcdef", visible_chars=6, visible_suffix=4)
+        assert result == "sk-123***cdef"
+
+
+class TestMaskConfigOutput:
+    """Tests for mask_config_output function."""
+
+    def test_mask_api_key_values(self):
+        """Test that api_key values are masked in YAML."""
+        config = """
+model_list:
+  - model_name: "gpt-5"
+    litellm_params:
+      api_key: "sk-1234567890abcdef"
+"""
+        result = mask_config_output(config)
+        assert "sk-1***ef" in result
+        assert "sk-1234567890abcdef" not in result
+
+    def test_mask_master_key_values(self):
+        """Test that master_key values are masked in YAML."""
+        config = """
+general_settings:
+  master_key: "master-key-secret"
+"""
+        result = mask_config_output(config)
+        assert "mast***et" in result
+        assert "master-key-secret" not in result
+
+    def test_mask_config_preserves_structure(self):
+        """Test that YAML structure is preserved after masking."""
+        config = """
+model_list:
+  - model_name: "gpt-5"
+    litellm_params:
+      api_key: "sk-1234567890abcdef"
+general_settings:
+  master_key: "master-key-secret"
+"""
+        result = mask_config_output(config)
+        assert "model_list:" in result
+        assert "model_name:" in result
+        assert "litellm_params:" in result
+        assert "general_settings:" in result
+
+    def test_mask_quoted_values(self):
+        """Test masking of quoted sensitive values."""
+        config = 'api_key: "sk-1234567890abcdef"'
+        result = mask_config_output(config)
+        assert "sk-1***ef" in result
+
+    def test_mask_unquoted_values(self):
+        """Test masking of unquoted sensitive values."""
+        config = "api_key: sk-1234567890abcdef"
+        result = mask_config_output(config)
+        assert "sk-1***ef" in result
+
+
+class TestWriteConfigFile:
+    """Tests for write_config_file function."""
+
+    def test_write_config_file_creates_file(self):
+        """Test that configuration is written to file correctly."""
+        config_text = "test: config\ndata: value"
+        path = "/tmp/test-config.yaml"
+
+        with patch("builtins.open", mock_open()) as mock_file:
+            write_config_file(config_text, path)
+
+            mock_file.assert_called_once_with(path, 'w')
+            mock_file().write.assert_called_once_with(config_text)
+
+
+class TestMain:
+    """Tests for main entrypoint function."""
+
+    @patch("src.config.entrypoint.os.execvp")
+    @patch("src.config.entrypoint.write_config_file")
+    @patch("src.config.entrypoint.render_config")
+    @patch("src.config.entrypoint.load_model_specs_from_env")
+    @patch("src.config.entrypoint.validate_environment")
+    def test_main_integration_flow(
+        self,
+        mock_validate,
+        mock_load_specs,
+        mock_render,
+        mock_write,
+        mock_execvp,
+        monkeypatch,
+        capsys,
+    ):
+        """Test the full main() integration flow with mocked dependencies."""
+        # Setup environment
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-api-key-1234567890")
+        monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-local-master")
+        monkeypatch.setenv("LITELLM_HOST", "0.0.0.0")
+        monkeypatch.setenv("PORT", "4000")
+
+        # Setup mocks
+        mock_model_spec = MagicMock()
+        mock_load_specs.return_value = [mock_model_spec]
+        mock_render.return_value = "api_key: sk-1234567890abcdef\nmaster_key: master-key-secret"
+
+        # Call main - execvp is mocked so it won't actually replace the process
+        main()
+
+        # Verify calls
+        mock_validate.assert_called_once()
+        mock_load_specs.assert_called_once()
+        mock_render.assert_called_once_with(
+            model_specs=[mock_model_spec],
+            global_upstream_base="https://agentrouter.org/v1",
+            master_key="sk-local-master",
+            drop_params=True,
+            streaming=True,
+            api_key="sk-test-api-key-1234567890",
+        )
+        mock_write.assert_called_once_with(
+            "api_key: sk-1234567890abcdef\nmaster_key: master-key-secret",
+            "/app/generated-config.yaml"
+        )
+
+        # Verify execvp was called with correct arguments
+        mock_execvp.assert_called_once()
+        args = mock_execvp.call_args[0]
+        assert args[0] == sys.executable
+        assert args[1] == [
+            sys.executable,
+            "-m",
+            "src.main",
+            "--config",
+            "/app/generated-config.yaml",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "4000",
+        ]
+
+        # Verify output contains masked values
+        captured = capsys.readouterr()
+        assert "sk-1***ef" in captured.out
+        assert "mast***et" in captured.out
+        assert "sk-1234567890abcdef" not in captured.out
+        assert "master-key-secret" not in captured.out
+
+    @patch("src.config.entrypoint.load_model_specs_from_env")
+    @patch("src.config.entrypoint.validate_environment")
+    def test_main_exits_on_load_specs_error(
+        self,
+        mock_validate,
+        mock_load_specs,
+        monkeypatch,
+        capsys,
+    ):
+        """Test that main exits with error when load_model_specs_from_env fails."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_load_specs.side_effect = ValueError("Missing MODEL_GPT5_UPSTREAM_MODEL")
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ERROR: Missing MODEL_GPT5_UPSTREAM_MODEL" in captured.err
+
+    @patch("src.config.entrypoint.render_config")
+    @patch("src.config.entrypoint.load_model_specs_from_env")
+    @patch("src.config.entrypoint.validate_environment")
+    def test_main_exits_on_render_error(
+        self,
+        mock_validate,
+        mock_load_specs,
+        mock_render,
+        monkeypatch,
+        capsys,
+    ):
+        """Test that main exits with error when render_config fails."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_load_specs.return_value = [MagicMock()]
+        mock_render.side_effect = Exception("Render failed")
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ERROR: Failed to generate configuration: Render failed" in captured.err
+
+    @patch("src.config.entrypoint.write_config_file")
+    @patch("src.config.entrypoint.render_config")
+    @patch("src.config.entrypoint.load_model_specs_from_env")
+    @patch("src.config.entrypoint.validate_environment")
+    def test_main_exits_on_write_error(
+        self,
+        mock_validate,
+        mock_load_specs,
+        mock_render,
+        mock_write,
+        monkeypatch,
+        capsys,
+    ):
+        """Test that main exits with error when write_config_file fails."""
+        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_load_specs.return_value = [MagicMock()]
+        mock_render.return_value = "config: data"
+        mock_write.side_effect = Exception("Write failed")
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "ERROR: Failed to write configuration file: Write failed" in captured.err

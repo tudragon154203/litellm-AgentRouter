@@ -17,6 +17,7 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
     """Render a single model entry for LiteLLM config."""
     # Use defaults from model_spec, falling back to global defaults
     upstream_base = model_spec.upstream_base or global_defaults.get("upstream_base", "https://agentrouter.org/v1")
+    api_key = global_defaults.get("api_key")
 
     # Convert model to openai/ format if it's not already prefixed
     upstream_model = model_spec.upstream_model
@@ -28,11 +29,18 @@ def render_model_entry(model_spec: ModelSpec, global_defaults: Dict[str, Any]) -
         "    litellm_params:",
         f"      model: {quote(upstream_model)}",
         f"      api_base: {quote(upstream_base)}",
+    ]
+
+    # Add api_key if provided
+    if api_key:
+        lines.append(f"      api_key: {quote(api_key)}")
+
+    lines.extend([
         f"      custom_llm_provider: {quote('openai')}",
         "      headers:",
         f"        \"User-Agent\": {quote(build_user_agent())}",
         f"        \"Content-Type\": {quote('application/json')}",
-    ]
+    ])
 
     # Check model capabilities and add reasoning_effort if supported
     capabilities = models.get_model_capabilities(model_spec.upstream_model)
@@ -60,6 +68,7 @@ def render_config(
     master_key: str | None,
     drop_params: bool,
     streaming: bool,
+    api_key: str | None = None,
 ) -> str:
     """Render a LiteLLM proxy config supporting one or more models."""
     if not model_specs:
@@ -68,6 +77,7 @@ def render_config(
     lines = ["model_list:"]
     global_defaults = {
         "upstream_base": global_upstream_base,
+        "api_key": api_key,
     }
 
     for model_spec in model_specs:
