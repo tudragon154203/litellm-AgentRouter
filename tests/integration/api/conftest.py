@@ -10,11 +10,14 @@ from src.config.config import runtime_config
 from src.node.process import NodeProxyProcess
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def node_proxy_for_tests():
     """
     Session-scoped fixture that starts a single Node proxy instance
     for all API integration tests to share.
+    
+    This fixture is autouse=True, so it will automatically start
+    the Node proxy when NODE_UPSTREAM_PROXY_ENABLE=1.
     """
     runtime_config.ensure_loaded()
     use_node_proxy = runtime_config.get_bool("NODE_UPSTREAM_PROXY_ENABLE", False)

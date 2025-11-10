@@ -33,11 +33,6 @@ class TestRealGPT5API:
         # Set drop_params to handle unsupported parameters for GPT-5
         litellm.drop_params = True
 
-    @pytest.fixture(autouse=True)
-    def _use_node_proxy(self, node_proxy_for_tests):
-        """Ensure the Node proxy fixture is loaded for all tests in this class."""
-        pass
-
     def _call_gpt5_api_not_stream(self, **kwargs):
         """Helper method to call GPT-5 API (non-streaming only)."""
         # Ensure streaming is disabled for this method

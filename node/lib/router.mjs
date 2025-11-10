@@ -35,7 +35,15 @@ export class NodeRequestRouter {
     const forwardedHeaders = buildForwardHeaders(req.headers);
 
     try {
-      const { data, response } = await handler(payload, forwardedHeaders);
+      const result = await handler(payload, forwardedHeaders);
+      
+      // Check if this is a streaming response
+      if (result.stream) {
+        return this._sendStreamingResponse(res, result.stream, forwardedHeaders, startTime, requestId);
+      }
+      
+      // Non-streaming response
+      const { data, response } = result;
       this._sendSuccess(res, data, response, forwardedHeaders, startTime);
     } catch (error) {
       const status = error?.status ?? 502;
@@ -78,9 +86,15 @@ export class NodeRequestRouter {
   _sendSuccess(res, data, response, forwardedHeaders, startTime) {
     const normalizedHeaders = headersToPlainObject(response.headers);
     const status = response.status ?? 200;
+    
+    // Serialize the response body
+    const body = JSON.stringify(data);
+    const bodyBuffer = Buffer.from(body, 'utf-8');
+    
     const responseHeaders = {
       ...normalizedHeaders,
       "content-type": normalizedHeaders["content-type"] ?? "application/json",
+      "content-length": bodyBuffer.length.toString(),
     };
 
     const requestId = normalizedHeaders["x-request-id"] ?? forwardedHeaders["X-Request-ID"];
@@ -89,7 +103,7 @@ export class NodeRequestRouter {
     }
 
     res.writeHead(status, responseHeaders);
-    res.end(JSON.stringify(data));
+    res.end(bodyBuffer);
 
     logEvent(this.logger, {
       event: "request_completed",
@@ -97,6 +111,45 @@ export class NodeRequestRouter {
       duration_s: ((Date.now() - startTime) / 1000).toFixed(2),
       request_id: requestId,
     });
+  }
+
+  async _sendStreamingResponse(res, stream, forwardedHeaders, startTime, requestId) {
+    const responseHeaders = {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+    };
+
+    if (requestId) {
+      responseHeaders["x-request-id"] = requestId;
+    }
+
+    res.writeHead(200, responseHeaders);
+
+    try {
+      for await (const chunk of stream) {
+        const line = `data: ${JSON.stringify(chunk)}\n\n`;
+        res.write(line);
+      }
+      
+      res.write("data: [DONE]\n\n");
+      res.end();
+
+      logEvent(this.logger, {
+        event: "request_completed",
+        status: 200,
+        duration_s: ((Date.now() - startTime) / 1000).toFixed(2),
+        request_id: requestId,
+        streaming: true,
+      });
+    } catch (error) {
+      logEvent(this.logger, {
+        event: "streaming_error",
+        error: error.message,
+        request_id: requestId,
+      });
+      res.end();
+    }
   }
 }
 
