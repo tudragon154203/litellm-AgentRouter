@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import signal
 import sys
 import tempfile
@@ -31,8 +32,9 @@ def quote(value: str) -> str:
 def build_user_agent(cli_version: str | None = None) -> str:
     """Return the canonical CLI user agent string for upstream requests."""
     version = cli_version or os.getenv("CLI_VERSION", "0.0.14")
-    architecture = os.getenv("PROCESSOR_ARCHITECTURE", "unknown")
-    return f"QwenCode/{version} ({sys.platform}; {architecture})"
+    os_name = platform.system().lower()
+    architecture = platform.machine() or "unknown"
+    return f"QwenCode/{version} ({os_name}; {architecture})"
 
 
 @contextmanager
