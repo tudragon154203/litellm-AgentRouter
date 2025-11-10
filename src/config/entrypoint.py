@@ -103,21 +103,32 @@ def main() -> NoReturn:
 
     # Determine Node upstream configuration
     node_proxy_enabled = runtime_config.get_bool("NODE_UPSTREAM_PROXY_ENABLE", True)
-    node_proxy_port = runtime_config.get_int("NODE_UPSTREAM_PROXY_PORT", 4001)
     node_base_url = None
     node_process: NodeProxyProcess | None = None
 
     if node_proxy_enabled:
-        node_process = NodeProxyProcess()
+        # Try to detect if running in docker-compose by checking for 'node-proxy' hostname
+        # In docker-compose, services can reach each other by service name
+        import socket
         try:
-            node_proc = node_process.start()
-        except RuntimeError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            sys.exit(1)
+            socket.gethostbyname('node-proxy')
+            # If we can resolve 'node-proxy', we're in docker-compose with separate services
+            # Node proxy always listens on port 4000 inside the container
+            node_base_url = "http://node-proxy:4000/v1"
+            print(f"Using external Node proxy service at {node_base_url}")
+        except socket.gaierror:
+            # Can't resolve 'node-proxy', so start it as subprocess (single-container mode)
+            node_process = NodeProxyProcess()
+            try:
+                node_proc = node_process.start()
+            except RuntimeError as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                sys.exit(1)
 
-        os.environ["NODE_UPSTREAM_PROXY_PID"] = str(node_proc.pid)
-        node_base_url = f"http://127.0.0.1:{node_proxy_port}/v1"
-        print(f"Routing LiteLLM upstream through Node helper at {node_base_url}")
+            os.environ["NODE_UPSTREAM_PROXY_PID"] = str(node_proc.pid)
+            # Node proxy listens on port 4000 by default
+            node_base_url = "http://127.0.0.1:4000/v1"
+            print(f"Routing LiteLLM upstream through Node helper at {node_base_url}")
 
     # Load model specs from environment
     try:

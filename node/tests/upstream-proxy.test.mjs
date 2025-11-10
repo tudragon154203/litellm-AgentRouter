@@ -193,11 +193,8 @@ test("propagates upstream errors and status codes", async () => {
   assert.strictEqual(JSON.parse(res.body).error, "upstream failure");
 });
 
-test("honors NODE_UPSTREAM_PROXY_PORT and hardcoded timeout", () => {
-  const port = 5055;
+test("uses default port 4000 and hardcoded timeout", () => {
   const recordedOptions = [];
-
-  process.env.NODE_UPSTREAM_PROXY_PORT = String(port);
 
   const proxy = createNodeUpstreamProxy({
     host: "127.0.0.1",
@@ -215,11 +212,7 @@ test("honors NODE_UPSTREAM_PROXY_PORT and hardcoded timeout", () => {
     },
   });
 
-  try {
-    assert.strictEqual(proxy.config.port, port);
-    assert.strictEqual(proxy.config.timeoutMs, DEFAULT_TIMEOUT_MS);
-    assert.strictEqual(recordedOptions[0].timeoutMs, DEFAULT_TIMEOUT_MS);
-  } finally {
-    delete process.env.NODE_UPSTREAM_PROXY_PORT;
-  }
+  assert.strictEqual(proxy.config.port, 4000);
+  assert.strictEqual(proxy.config.timeoutMs, DEFAULT_TIMEOUT_MS);
+  assert.strictEqual(recordedOptions[0].timeoutMs, DEFAULT_TIMEOUT_MS);
 });

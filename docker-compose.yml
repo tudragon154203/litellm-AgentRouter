@@ -1,6 +1,24 @@
 services:
+  node-proxy:
+    build: .
+    container_name: litellm-node-proxy
+    command: ["node", "/app/node/upstream-proxy.mjs"]
+    volumes:
+      - ./node:/app/node
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const net=require('net');const s=net.connect(4000,()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));\""]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   litellm-proxy:
     build: .
+    container_name: litellm-python-proxy
     ports:
       - "${PORT:-4000}:4000"
     entrypoint: ["/bin/bash", "/app/entrypoint.sh"]
@@ -8,7 +26,14 @@ services:
       - ./src:/app/src
       - ./.env:/app/.env
       - ./entrypoint.sh:/app/entrypoint.sh
-      - ./node:/app/node
     env_file:
       - .env
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - litellm
+
+networks:
+  default:
+    name: litellm-network

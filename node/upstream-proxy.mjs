@@ -3,8 +3,8 @@ import os from "node:os";
 import { OpenAI } from "openai";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_PORT = 4001;
-const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_PORT = 4000;
+const DEFAULT_HOST = "0.0.0.0";  // Listen on all interfaces for docker-compose compatibility
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_UPSTREAM_BASE = "https://agentrouter.org/v1";
 const DEFAULT_USER_AGENT = `QwenCode/0.2.0 (${os.platform().toLowerCase()}; ${os.arch()})`;
@@ -37,7 +37,7 @@ class NodeProxyConfig {
   }
 
   static fromEnv(overrides = {}) {
-    const resolvedPort = overrides.port ?? getEnvNumber("NODE_UPSTREAM_PROXY_PORT", DEFAULT_PORT);
+    const resolvedPort = overrides.port ?? DEFAULT_PORT;
     const resolvedHost = overrides.host ?? DEFAULT_HOST;
     const resolvedTimeout = overrides.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const resolvedBase = overrides.upstreamBase ?? process.env.OPENAI_BASE_URL ?? DEFAULT_UPSTREAM_BASE;

@@ -58,13 +58,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_false",
         help="Disable routing through the Node upstream proxy.",
     )
-    parser.add_argument(
-        "--node-proxy-port",
-        dest="node_proxy_port",
-        type=int,
-        default=int(os.getenv("NODE_UPSTREAM_PROXY_PORT", "4001")),
-        help="Port the Node upstream proxy listens on.",
-    )
+
     parser.add_argument(
         "--master-key",
         dest="master_key",

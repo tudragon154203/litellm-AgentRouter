@@ -30,7 +30,6 @@ class NodeProxyProcess:
         api_key = runtime_config.get_str("OPENAI_API_KEY")
         if api_key:
             env.setdefault("OPENAI_API_KEY", api_key)
-        env["NODE_UPSTREAM_PROXY_PORT"] = str(runtime_config.get_int("NODE_UPSTREAM_PROXY_PORT", 4001))
         env["NODE_USER_AGENT"] = build_user_agent()
         return env
 

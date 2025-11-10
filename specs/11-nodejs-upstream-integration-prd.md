@@ -20,7 +20,7 @@
    These tests should fail until the proxy logic is implemented and pass once Node request handling is wired up.
 
 2. **Python unit tests**: Extend `tests/unit/` to assert that
-   * the runtime configuration respects new Node upstream flags (e.g., `NODE_UPSTREAM_PROXY_ENABLE`, `NODE_UPSTREAM_PROXY_PORT`),
+   * the runtime configuration respects new Node upstream flags (e.g., `NODE_UPSTREAM_PROXY_ENABLE`),
    * the entrypoint starts the Node helper process (mocking `subprocess.Popen`) and that resources are cleaned up on shutdown,
    * the generated LiteLLM config points at the Node proxy base URL when the feature flag is enabled.
    These tests should run before touching implementation to capture regressions early, and they must preserve the current >95% coverage target.
@@ -34,17 +34,17 @@
 
 ## Proposed Solution
 
-- **Node helper service**: Create a lightweight Node.js HTTP service (e.g., `node/upstream-proxy.mjs`) that listens on a configurable port (`NODE_UPSTREAM_PROXY_PORT`, default `4001`). It exposes at least the `/v1/chat/completions` and `/v1/completions` endpoints, parses incoming bodies, and reuses the official `openai` Node client to call the real upstream base (`OPENAI_BASE_URL`, default `https://agentrouter.org/v1`). Responses (including headers and status codes) are streamed straight back to the Python proxy.
+- **Node helper service**: Create a lightweight Node.js HTTP service (e.g., `node/upstream-proxy.mjs`) that listens on port `4000`. It exposes at least the `/v1/chat/completions` and `/v1/completions` endpoints, parses incoming bodies, and reuses the official `openai` Node client to call the real upstream base (`OPENAI_BASE_URL`, default `https://agentrouter.org/v1`). Responses (including headers and status codes) are streamed straight back to the Python proxy.
 - **Process supervision**: Update `src/config/entrypoint.py` (or a dedicated helper under `src/node`) to spawn this Node service before generating the LiteLLM config. The helper should inject `NODE_USER_AGENT` (derived from `utils.build_user_agent`) into the Node env, then ensure the subprocess is terminated when the proxy shuts down.
-- **Configuration handoff**: When `NODE_UPSTREAM_PROXY_ENABLE` is true, override the generated LiteLLM `api_base` to point at `http://127.0.0.1:{NODE_UPSTREAM_PROXY_PORT}` so Litellm routes through Node. Preserve the existing `OPENAI_BASE_URL` for other code paths, logging the substitution for debugging. Ensure `src/config/config.py` surfaces the new values and that `validate_prereqs()` inspects both Python and Node prerequisites (e.g., `node --version`).
+- **Configuration handoff**: When `NODE_UPSTREAM_PROXY_ENABLE` is true, override the generated LiteLLM `api_base` to point at `http://127.0.0.1:4000` (or `http://node-proxy:4000` in docker-compose) so Litellm routes through Node. Preserve the existing `OPENAI_BASE_URL` for other code paths, logging the substitution for debugging. Ensure `src/config/config.py` surfaces the new values and that `validate_prereqs()` inspects both Python and Node prerequisites (e.g., `node --version`).
 - **Docker/compose updates**: Extend `Dockerfile` to install a Node.js runtime (`node`, `npm ci`), copy the `package.json`/`package-lock.json`, and run the helper alongside the Python entrypoint. Update `docker-compose.yml`/`entrypoint.sh` so the Node service comes up before `python -m src.config.entrypoint`. Mount the new Node files for local dev and ensure volume overrides remain consistent.
 - **Telemetry/logging discipline**: Keep the existing structured telemetry middleware intact. The Node helper should emit structured JSON lines (e.g., `{ "node_proxy": {...} }`) so logs can be correlated; the Python telemetry middleware should capture the `x-request-id` if we forward it.
 
 ## Architecture
 
 1. `entrypoint.sh` → `python -m src.config.entrypoint`.
-2. Entry point spawns Node helper: env `NODE_UPSTREAM_PROXY_PORT=4001` and preserves `OPENAI_BASE_URL`, ensuring the helper logs the upstream base for debugging.
-3. LiteLLM config generator uses Node base (`http://127.0.0.1:4001/v1`) when the proxy flag is enabled; `custom_llm_provider: openai` remains unchanged.
+2. Entry point spawns Node helper: preserves `OPENAI_BASE_URL`, ensuring the helper logs the upstream base for debugging.
+3. LiteLLM config generator uses Node base (`http://127.0.0.1:4000/v1` or `http://node-proxy:4000/v1`) when the proxy flag is enabled; `custom_llm_provider: openai` remains unchanged.
 4. LiteLLM proxy (`litellm.proxy`) talks to Node helper, which calls Node `openai` client, which then talks to `agentrouter.org`.
 5. Node helper streams responses back so Python telemetry sees the original upstream latency/headers.
 
@@ -52,9 +52,9 @@
 
 - **New environment variables**:
   - `NODE_UPSTREAM_PROXY_ENABLE` (bool flag, defaults to `true` in production) – whether to route LiteLLM through Node.
-  - `NODE_UPSTREAM_PROXY_PORT` (default `4001`) – port for the Node helper.
-- All configuration values funnel through `src.config.config.runtime_config` so tests and CLI flags can override them (`--upstream-base`, `--node-proxy-port`, etc.).
+- All configuration values funnel through `src.config.config.runtime_config` so tests and CLI flags can override them (`--upstream-base`, etc.).
 - The Node helper reads `NODE_USER_AGENT` to keep the existing QwenCode UA string and logs the `OPENAI_BASE_URL`.
+- The Node helper always listens on port `4000` to match the LiteLLM proxy port convention.
 
 ## Rollout & Migration
 

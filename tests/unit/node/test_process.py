@@ -22,14 +22,12 @@ def test_build_env_applies_runtime_settings(monkeypatch, tmp_path):
     script = _create_node_script(tmp_path)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-node")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.upstream/v1")
-    monkeypatch.setenv("NODE_UPSTREAM_PROXY_PORT", "5055")
     monkeypatch.setenv("SKIP_DOTENV", "1")
 
     monkeypatch.setattr("src.node.process.build_user_agent", lambda: "QwenCode/test-agent")
     node_process = NodeProxyProcess(node_script=script)
     env = node_process._build_env()
 
-    assert env["NODE_UPSTREAM_PROXY_PORT"] == "5055"
     assert env["OPENAI_BASE_URL"] == "https://custom.upstream/v1"
     assert env["NODE_USER_AGENT"] == "QwenCode/test-agent"
     assert env["OPENAI_API_KEY"] == "sk-node"

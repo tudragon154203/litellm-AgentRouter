@@ -216,11 +216,7 @@ class TestParseArgs:
             args = parse_args([])
             assert args.node_upstream_proxy_enabled is False
 
-    def test_parse_args_node_proxy_port_from_env(self):
-        """Node proxy port should follow NODE_UPSTREAM_PROXY_PORT environment variable."""
-        with patch.dict(os.environ, {"NODE_UPSTREAM_PROXY_PORT": "5055"}):
-            args = parse_args([])
-            assert args.node_proxy_port == 5055
+
 
     def test_parse_args_streaming_flag(self):
         """Test parse_args with --streaming flag."""

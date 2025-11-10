@@ -69,10 +69,9 @@ def test_node_upstream_proxy_end_to_end(tmp_path):
     upstream_thread = threading.Thread(target=upstream_server.serve_forever, daemon=True)
     upstream_thread.start()
 
-    node_port = _find_free_port()
+    node_port = 4000  # Node proxy always uses port 4000
     node_env = os.environ.copy()
     node_env.update({
-        "NODE_UPSTREAM_PROXY_PORT": str(node_port),
         "OPENAI_BASE_URL": f"http://127.0.0.1:{upstream_port}/v1",
         "OPENAI_API_KEY": "sk-node-upstream",
     })
