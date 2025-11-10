@@ -52,9 +52,6 @@ def load_model_specs_from_env() -> List[ModelSpec]:
     keys = [key.strip() for key in proxy_model_keys.split(',') if key.strip()]
     model_specs: List[ModelSpec] = []
 
-    # Global defaults
-    global_base = os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
-
     for key in keys:
         prefix = f"MODEL_{key.upper()}_"
 
@@ -68,7 +65,9 @@ def load_model_specs_from_env() -> List[ModelSpec]:
             )
 
         upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
-        upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE") or global_base
+        # Allow per-model upstream_base override, but default to None
+        # so it falls back to the global_upstream_base passed to render_config
+        upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE")
         reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
 
         if not upstream_model:
@@ -80,7 +79,7 @@ def load_model_specs_from_env() -> List[ModelSpec]:
                 key=key,
                 alias=None,  # Let ModelSpec derive alias from upstream_model
                 upstream_model=upstream_model,
-                upstream_base=upstream_base,
+                upstream_base=upstream_base,  # None unless explicitly set per-model
                 reasoning_effort=reasoning_effort,
             )
         )
@@ -133,7 +132,12 @@ def prepare_config(args) -> tuple[str, bool]:
             sys.exit(1)
 
     # Get configuration parameters from args with defaults
-    global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"
+    node_proxy_enabled = getattr(args, "node_upstream_proxy_enabled", True)
+    node_proxy_port = getattr(args, "node_proxy_port", 4001)
+    if node_proxy_enabled:
+        global_upstream_base = f"http://127.0.0.1:{node_proxy_port}/v1"
+    else:
+        global_upstream_base = getattr(args, 'upstream_base', None) or "https://agentrouter.org/v1"
     master_key = None if getattr(args, 'no_master_key', False) else getattr(args, 'master_key', "sk-local-master")
     drop_params = getattr(args, 'drop_params', True)
     streaming = getattr(args, 'streaming', True)

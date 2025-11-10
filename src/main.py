@@ -12,9 +12,13 @@ from pathlib import Path
 from .cli import parse_args
 from .config.config import runtime_config
 from .config.parsing import prepare_config
-from .utils import create_temp_config_if_needed
+from .utils import (
+    attach_signal_handlers,
+    create_temp_config_if_needed,
+    register_node_proxy_cleanup,
+    validate_prereqs,
+)
 from .proxy import start_proxy
-from .utils import attach_signal_handlers, validate_prereqs
 
 
 def get_startup_message(args) -> str:
@@ -41,6 +45,7 @@ def main(argv: list[str] | None = None) -> NoReturn:
     """Main entry point for the LiteLLM proxy launcher."""
     runtime_config.ensure_loaded()
     validate_prereqs()
+    register_node_proxy_cleanup()
     args = parse_args(argv)
     attach_signal_handlers()
 

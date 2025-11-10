@@ -8,6 +8,7 @@ services:
       - ./src:/app/src
       - ./.env:/app/.env
       - ./entrypoint.sh:/app/entrypoint.sh
+      - ./node:/app/node
     env_file:
       - .env
     restart: unless-stopped

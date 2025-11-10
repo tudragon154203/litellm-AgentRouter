@@ -14,6 +14,7 @@ import sys
 from typing import NoReturn
 
 from .config import runtime_config
+from ..node.process import NodeProxyProcess
 from .parsing import load_model_specs_from_env
 from .rendering import render_config
 
@@ -100,16 +101,36 @@ def main() -> NoReturn:
     # Validate environment
     validate_environment()
 
+    # Determine Node upstream configuration
+    node_proxy_enabled = runtime_config.get_bool("NODE_UPSTREAM_PROXY_ENABLE", True)
+    node_proxy_port = runtime_config.get_int("NODE_UPSTREAM_PROXY_PORT", 4001)
+    node_base_url = None
+    node_process: NodeProxyProcess | None = None
+
+    if node_proxy_enabled:
+        node_process = NodeProxyProcess()
+        try:
+            node_proc = node_process.start()
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        os.environ["NODE_UPSTREAM_PROXY_PID"] = str(node_proc.pid)
+        node_base_url = f"http://127.0.0.1:{node_proxy_port}/v1"
+        print(f"Routing LiteLLM upstream through Node helper at {node_base_url}")
+
     # Load model specs from environment
     try:
         model_specs = load_model_specs_from_env()
     except ValueError as e:
+        if node_process:
+            node_process.stop()
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
     # Generate configuration
     runtime_config.ensure_loaded()
-    global_upstream_base = runtime_config.get_str("OPENAI_BASE_URL", "https://agentrouter.org/v1")
+    global_upstream_base = node_base_url or runtime_config.get_str("OPENAI_BASE_URL", "https://agentrouter.org/v1")
     api_key = runtime_config.get_str("OPENAI_API_KEY")
     master_key = runtime_config.get_str("LITELLM_MASTER_KEY", "sk-local-master")
 
@@ -123,6 +144,8 @@ def main() -> NoReturn:
             api_key=api_key,
         )
     except Exception as e:
+        if node_process:
+            node_process.stop()
         print(f"ERROR: Failed to generate configuration: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -131,6 +154,8 @@ def main() -> NoReturn:
     try:
         write_config_file(config_text, config_path)
     except Exception as e:
+        if node_process:
+            node_process.stop()
         print(f"ERROR: Failed to write configuration file: {e}", file=sys.stderr)
         sys.exit(1)
 

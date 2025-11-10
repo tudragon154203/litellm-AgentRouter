@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 import signal
-import sys
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +15,7 @@ from src.utils import (
     build_user_agent,
     env_bool,
     quote,
+    register_node_proxy_cleanup,
     temporary_config,
     validate_prereqs,
 )
@@ -96,25 +97,28 @@ class TestBuildUserAgent:
 
     def test_build_user_agent_defaults(self):
         """Uses default version and architecture when env vars missing."""
-        with patch.dict(os.environ, {}, clear=True):
-            expected = f"QwenCode/0.0.14 ({sys.platform}; unknown)"
+        with patch.dict(os.environ, {}, clear=True), \
+             patch("src.utils.platform.system", return_value="linux"), \
+             patch("src.utils.platform.machine", return_value="x86_64"):
+            expected = "QwenCode/0.2.0 (linux; x86_64)"
             assert build_user_agent() == expected
 
     def test_build_user_agent_uses_env_overrides(self):
-        """Reads CLI_VERSION and PROCESSOR_ARCHITECTURE from environment."""
-        env = {
-            "CLI_VERSION": "1.2.3",
-            "PROCESSOR_ARCHITECTURE": "arm64",
-        }
-        with patch.dict(os.environ, env, clear=True):
-            expected = f"QwenCode/1.2.3 ({sys.platform}; arm64)"
+        """Reads CLI_VERSION from environment."""
+        env = {"CLI_VERSION": "1.2.3"}
+        with patch.dict(os.environ, env, clear=True), \
+             patch("src.utils.platform.system", return_value="darwin"), \
+             patch("src.utils.platform.machine", return_value="arm64"):
+            expected = "QwenCode/1.2.3 (darwin; arm64)"
             assert build_user_agent() == expected
 
     def test_build_user_agent_explicit_version_argument(self):
         """Explicit version argument overrides environment variable."""
         env = {"CLI_VERSION": "should-not-appear"}
-        with patch.dict(os.environ, env, clear=True):
-            expected = f"QwenCode/9.9.9 ({sys.platform}; unknown)"
+        with patch.dict(os.environ, env, clear=True), \
+             patch("src.utils.platform.system", return_value="linux"), \
+             patch("src.utils.platform.machine", return_value="x86_64"):
+            expected = "QwenCode/9.9.9 (linux; x86_64)"
             assert build_user_agent("9.9.9") == expected
 
 
@@ -196,13 +200,32 @@ class TestValidatePrereqs:
 
     def test_validate_prereqs_success(self):
         """Test validate_prereqs when dependencies are available."""
+        completion = subprocess.CompletedProcess(["node", "--version"], 0)
+
         with patch.dict("sys.modules", {
             "litellm": MagicMock(),
             "litellm.proxy": MagicMock(),
             "litellm.proxy.proxy_cli": MagicMock(),
-        }):
+        }), patch("shutil.which", return_value="/usr/bin/node"), patch("src.utils.subprocess.run", return_value=completion) as mock_run:
             # Should not raise any exception
             validate_prereqs()
+            mock_run.assert_called_once_with(
+                ["node", "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+
+    def test_validate_prereqs_missing_node(self):
+        """Test validate_prereqs when Node.js is unavailable."""
+        with patch.dict("sys.modules", {
+            "litellm": MagicMock(),
+            "litellm.proxy": MagicMock(),
+            "litellm.proxy.proxy_cli": MagicMock(),
+        }), patch("shutil.which", return_value=None):
+            with pytest.raises(SystemExit):
+                validate_prereqs()
 
     def test_validate_prereqs_missing_litellm(self):
         """Test validate_prereqs when litellm is missing."""
@@ -213,12 +236,47 @@ class TestValidatePrereqs:
         # is installed without the proxy dependencies
         pass
 
-    def test_validate_prereqs_missing_proxy_cli(self):
-        """Test validate_prereqs when proxy_cli is missing."""
-        # This test is complex to mock reliably due to import caching
-        # In practice, this function works correctly - we can test the success case
-        # and assume the failure case would behave as expected
-        pass
+
+def test_validate_prereqs_missing_proxy_cli():
+    """Test validate_prereqs when proxy_cli is missing."""
+    # This test is complex to mock reliably due to import caching
+    # In practice, this function works correctly - we can test the success case
+    # and assume the failure case would behave as expected
+    pass
+
+
+class TestRegisterNodeProxyCleanup:
+    """Tests for register_node_proxy_cleanup helper."""
+
+    def test_registers_cleanup_handler_for_valid_pid(self, monkeypatch):
+        """Cleanup handler should be registered and call os.kill with SIGTERM."""
+        monkeypatch.setenv("NODE_UPSTREAM_PROXY_PID", "5555")
+        registered_handlers: list = []
+
+        def fake_register(func):
+            registered_handlers.append(func)
+
+        with patch("src.utils.atexit.register", fake_register):
+            register_node_proxy_cleanup()
+
+        assert registered_handlers, "Expected a cleanup handler to be registered"
+
+        with patch("src.utils.os.kill") as mock_kill:
+            registered_handlers[0]()
+            mock_kill.assert_called_once_with(5555, signal.SIGTERM)
+
+    def test_ignores_invalid_pid(self, monkeypatch):
+        """Non-numeric PIDs should not register a handler."""
+        monkeypatch.setenv("NODE_UPSTREAM_PROXY_PID", "not-a-pid")
+        registered_handlers: list = []
+
+        def fake_register(func):
+            registered_handlers.append(func)
+
+        with patch("src.utils.atexit.register", fake_register):
+            register_node_proxy_cleanup()
+
+        assert not registered_handlers
 
 
 def test_create_temp_config_type_error():

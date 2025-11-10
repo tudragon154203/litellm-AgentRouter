@@ -44,6 +44,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=os.getenv("OPENAI_BASE_URL", "https://agentrouter.org/v1"),
         help="Base URL for the upstream OpenAI-compatible endpoint.",
     )
+    node_proxy_default = env_bool("NODE_UPSTREAM_PROXY_ENABLE", True)
+    parser.add_argument(
+        "--node-upstream-proxy",
+        dest="node_upstream_proxy_enabled",
+        action="store_true",
+        default=node_proxy_default,
+        help="Enable routing through the Node upstream proxy (default: NODE_UPSTREAM_PROXY_ENABLE).",
+    )
+    parser.add_argument(
+        "--no-node-upstream-proxy",
+        dest="node_upstream_proxy_enabled",
+        action="store_false",
+        help="Disable routing through the Node upstream proxy.",
+    )
+    parser.add_argument(
+        "--node-proxy-port",
+        dest="node_proxy_port",
+        type=int,
+        default=int(os.getenv("NODE_UPSTREAM_PROXY_PORT", "4001")),
+        help="Port the Node upstream proxy listens on.",
+    )
     parser.add_argument(
         "--master-key",
         dest="master_key",

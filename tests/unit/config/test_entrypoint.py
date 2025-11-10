@@ -5,6 +5,7 @@ Unit tests for Docker entrypoint module.
 
 from __future__ import annotations
 
+import os
 import sys
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -152,8 +153,10 @@ class TestMain:
     @patch("src.config.entrypoint.render_config")
     @patch("src.config.entrypoint.load_model_specs_from_env")
     @patch("src.config.entrypoint.validate_environment")
+    @patch("src.config.entrypoint.NodeProxyProcess")
     def test_main_integration_flow(
         self,
+        mock_node_cls,
         mock_validate,
         mock_load_specs,
         mock_render,
@@ -172,6 +175,9 @@ class TestMain:
         monkeypatch.setenv("PORT", "4000")
 
         # Setup mocks
+        mock_node_instance = MagicMock()
+        mock_node_instance.start.return_value.pid = 1234
+        mock_node_cls.return_value = mock_node_instance
         mock_model_spec = MagicMock()
         mock_load_specs.return_value = [mock_model_spec]
         mock_render.return_value = "api_key: sk-1234567890abcdef\nmaster_key: master-key-secret"
@@ -182,9 +188,12 @@ class TestMain:
         # Verify calls
         mock_validate.assert_called_once()
         mock_load_specs.assert_called_once()
+        mock_node_instance.start.assert_called_once()
+        mock_node_instance.stop.assert_not_called()
+        assert os.environ.get("NODE_UPSTREAM_PROXY_PID") == "1234"
         mock_render.assert_called_once_with(
             model_specs=[mock_model_spec],
-            global_upstream_base="https://agentrouter.org/v1",
+            global_upstream_base="http://127.0.0.1:4001/v1",
             master_key="sk-local-master",
             drop_params=True,
             streaming=True,
@@ -211,17 +220,20 @@ class TestMain:
             "4000",
         ]
 
-        # Verify output contains masked values
+        # Verify output contains masked values and cleanup
         captured = capsys.readouterr()
         assert "sk-1***ef" in captured.out
         assert "mast***et" in captured.out
         assert "sk-1234567890abcdef" not in captured.out
         assert "master-key-secret" not in captured.out
+        monkeypatch.delenv("NODE_UPSTREAM_PROXY_PID", raising=False)
 
     @patch("src.config.entrypoint.load_model_specs_from_env")
     @patch("src.config.entrypoint.validate_environment")
+    @patch("src.config.entrypoint.NodeProxyProcess")
     def test_main_exits_on_load_specs_error(
         self,
+        mock_node_cls,
         mock_validate,
         mock_load_specs,
         monkeypatch,
@@ -229,6 +241,9 @@ class TestMain:
     ):
         """Test that main exits with error when load_model_specs_from_env fails."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_node_instance = MagicMock()
+        mock_node_instance.start.return_value.pid = 5678
+        mock_node_cls.return_value = mock_node_instance
         mock_load_specs.side_effect = ValueError("Missing MODEL_GPT5_UPSTREAM_MODEL")
 
         with pytest.raises(SystemExit) as exc_info:
@@ -237,12 +252,16 @@ class TestMain:
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "ERROR: Missing MODEL_GPT5_UPSTREAM_MODEL" in captured.err
+        mock_node_instance.stop.assert_called_once()
+        monkeypatch.delenv("NODE_UPSTREAM_PROXY_PID", raising=False)
 
     @patch("src.config.entrypoint.render_config")
     @patch("src.config.entrypoint.load_model_specs_from_env")
     @patch("src.config.entrypoint.validate_environment")
+    @patch("src.config.entrypoint.NodeProxyProcess")
     def test_main_exits_on_render_error(
         self,
+        mock_node_cls,
         mock_validate,
         mock_load_specs,
         mock_render,
@@ -251,6 +270,9 @@ class TestMain:
     ):
         """Test that main exits with error when render_config fails."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_node_instance = MagicMock()
+        mock_node_instance.start.return_value.pid = 9012
+        mock_node_cls.return_value = mock_node_instance
         mock_load_specs.return_value = [MagicMock()]
         mock_render.side_effect = Exception("Render failed")
 
@@ -260,13 +282,17 @@ class TestMain:
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "ERROR: Failed to generate configuration: Render failed" in captured.err
+        mock_node_instance.stop.assert_called_once()
+        monkeypatch.delenv("NODE_UPSTREAM_PROXY_PID", raising=False)
 
     @patch("src.config.entrypoint.write_config_file")
     @patch("src.config.entrypoint.render_config")
     @patch("src.config.entrypoint.load_model_specs_from_env")
     @patch("src.config.entrypoint.validate_environment")
+    @patch("src.config.entrypoint.NodeProxyProcess")
     def test_main_exits_on_write_error(
         self,
+        mock_node_cls,
         mock_validate,
         mock_load_specs,
         mock_render,
@@ -276,6 +302,9 @@ class TestMain:
     ):
         """Test that main exits with error when write_config_file fails."""
         monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
+        mock_node_instance = MagicMock()
+        mock_node_instance.start.return_value.pid = 2023
+        mock_node_cls.return_value = mock_node_instance
         mock_load_specs.return_value = [MagicMock()]
         mock_render.return_value = "config: data"
         mock_write.side_effect = Exception("Write failed")
@@ -286,3 +315,5 @@ class TestMain:
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "ERROR: Failed to write configuration file: Write failed" in captured.err
+        mock_node_instance.stop.assert_called_once()
+        monkeypatch.delenv("NODE_UPSTREAM_PROXY_PID", raising=False)

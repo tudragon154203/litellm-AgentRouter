@@ -5,10 +5,13 @@ Utility functions for LiteLLM proxy launcher.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import platform
 import signal
+import shutil
+import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
@@ -31,9 +34,9 @@ def quote(value: str) -> str:
 
 def build_user_agent(cli_version: str | None = None) -> str:
     """Return the canonical CLI user agent string for upstream requests."""
-    version = cli_version or os.getenv("CLI_VERSION", "0.0.14")
-    os_name = sys.platform
-    architecture = os.getenv("PROCESSOR_ARCHITECTURE", "unknown")
+    version = cli_version or os.getenv("CLI_VERSION", "0.2.0")
+    os_name = platform.system().lower()
+    architecture = platform.machine()
     return f"QwenCode/{version} ({os_name}; {architecture})"
 
 
@@ -80,6 +83,26 @@ def attach_signal_handlers() -> None:
         signal.signal(sig, handle_signal)
 
 
+def register_node_proxy_cleanup() -> None:
+    """Register cleanup handler to terminate the Node helper subprocess."""
+    node_pid = os.getenv("NODE_UPSTREAM_PROXY_PID")
+    if not node_pid:
+        return
+
+    try:
+        parsed_pid = int(node_pid)
+    except ValueError:
+        return
+
+    def cleanup() -> None:
+        try:
+            os.kill(parsed_pid, signal.SIGTERM)
+        except OSError:
+            pass
+
+    atexit.register(cleanup)
+
+
 @contextmanager
 def create_temp_config_if_needed(config_data: str | Path, is_generated: bool) -> Iterator[Path]:
     """Return a context manager that yields a config path, creating one when required."""
@@ -101,3 +124,26 @@ def validate_prereqs() -> None:
             file=sys.stderr,
         )
         raise SystemExit(2) from exc
+
+    if env_bool("NODE_UPSTREAM_PROXY_ENABLE", True):
+        if shutil.which("node") is None:
+            print(
+                "ERROR: Node.js runtime is required for the Node upstream proxy but not found.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
+        try:
+            subprocess.run(
+                ["node", "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except subprocess.SubprocessError as exc:
+            print(
+                "ERROR: Failed to verify Node.js runtime availability.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2) from exc

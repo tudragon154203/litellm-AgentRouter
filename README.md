@@ -55,6 +55,19 @@ python -m src.main \
   --model-spec "key=glm,alias=glm-4.6,upstream=glm-4.6"
 ```
 
+## Node.js Upstream Proxy
+
+The proxy now routes all upstream traffic through a lightweight Node.js helper (`node/upstream-proxy.mjs`) that uses the official `openai` Node client. The helper listens on `NODE_UPSTREAM_PROXY_PORT` (default `4001`) and forwards `/v1/chat/completions` and `/v1/completions` requests to the real upstream (`OPENAI_BASE_URL`, default `https://agentrouter.org/v1`). The Python entrypoint automatically starts the helper, passes along `NODE_USER_AGENT`, and rewrites the LiteLLM config’s `api_base` to `http://127.0.0.1:{NODE_UPSTREAM_PROXY_PORT}/v1` whenever `NODE_UPSTREAM_PROXY_ENABLE` is enabled (default: `true`).
+
+```
+NODE_UPSTREAM_PROXY_ENABLE=true
+NODE_UPSTREAM_PROXY_PORT=4001
+```
+
+The helper enforces a fixed 60 second timeout for upstream calls.
+
+Run the Node unit tests from the project root with `npm test` and adjust `.env` (or `docker-compose.yml`) to override the helper’s port as needed.
+
 ## Client Usage
 
 Configure OpenAI-compatible clients with:

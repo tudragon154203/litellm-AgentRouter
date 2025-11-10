@@ -34,6 +34,8 @@ class TestParseArgs:
             assert args.drop_params is True
             assert args.streaming is True
             assert args.print_config is False
+            assert args.node_upstream_proxy_enabled is True
+            assert args.node_proxy_port == 4001
 
     def test_parse_args_with_all_arguments(self):
         """Test parse_args with all command line arguments provided."""
@@ -52,6 +54,8 @@ class TestParseArgs:
             "--no-drop-params",
             "--no-streaming",
             "--print-config",
+            "--no-node-upstream-proxy",
+            "--node-proxy-port", "5020",
         ]
 
         with patch.dict(os.environ, {}, clear=True):
@@ -71,6 +75,8 @@ class TestParseArgs:
             assert args.drop_params is False
             assert args.streaming is False
             assert args.print_config is True
+            assert args.node_upstream_proxy_enabled is False
+            assert args.node_proxy_port == 5020
 
     def test_parse_args_config_from_env(self):
         """Test parse_args with config - LITELLM_CONFIG is now retired (hardcoded to None)."""
@@ -203,6 +209,18 @@ class TestParseArgs:
             with patch.dict(os.environ, {"STREAMING_ENABLE": env_value}):
                 args = parse_args([])
                 assert args.streaming is expected, f"Failed for env value: {env_value}"
+
+    def test_parse_args_node_proxy_env_disable(self):
+        """Ensure NODE_UPSTREAM_PROXY_ENABLE disables the Node proxy via env."""
+        with patch.dict(os.environ, {"NODE_UPSTREAM_PROXY_ENABLE": "0"}):
+            args = parse_args([])
+            assert args.node_upstream_proxy_enabled is False
+
+    def test_parse_args_node_proxy_port_from_env(self):
+        """Node proxy port should follow NODE_UPSTREAM_PROXY_PORT environment variable."""
+        with patch.dict(os.environ, {"NODE_UPSTREAM_PROXY_PORT": "5055"}):
+            args = parse_args([])
+            assert args.node_proxy_port == 5055
 
     def test_parse_args_streaming_flag(self):
         """Test parse_args with --streaming flag."""

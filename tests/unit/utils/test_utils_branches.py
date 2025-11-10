@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+from unittest.mock import patch
 
 from src.utils import validate_prereqs
 
@@ -30,8 +32,11 @@ class TestUtilsBranches:
         try:
             os.environ.pop("SKIP_PREREQ_CHECK", None)
 
-            # Should succeed with litellm installed
-            validate_prereqs()
+            completion = subprocess.CompletedProcess(["node", "--version"], 0)
+            with patch("shutil.which", return_value="/usr/bin/node"), \
+                    patch("src.utils.subprocess.run", return_value=completion) as mock_run:
+                validate_prereqs()
+                mock_run.assert_called_once()
 
         finally:
             if original is not None:

@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "openai": "^6.8.1"
+  },
+  "scripts": {
+    "test": "node --test node/tests/upstream-proxy.test.mjs"
   }
 }
