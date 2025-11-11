@@ -5,8 +5,8 @@ import {
   DEFAULT_HOST,
   DEFAULT_TIMEOUT_MS,
   DEFAULT_UPSTREAM_BASE,
-  DEFAULT_USER_AGENT,
 } from "../../lib/constants.mjs";
+import { DEFAULT_USER_AGENT } from "../../lib/fetchVersion.mjs";
 
 test("DEFAULT_PORT is 4000", () => {
   assert.strictEqual(DEFAULT_PORT, 4000);

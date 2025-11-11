@@ -3,8 +3,8 @@ import {
   DEFAULT_HOST,
   DEFAULT_TIMEOUT_MS,
   DEFAULT_UPSTREAM_BASE,
-  DEFAULT_USER_AGENT,
 } from "./constants.mjs";
+import { DEFAULT_USER_AGENT } from "./fetchVersion.mjs";
 
 export class NodeProxyConfig {
   constructor({ port, host, timeoutMs, upstreamBase, apiKey, userAgent }) {
