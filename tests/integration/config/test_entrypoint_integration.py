@@ -5,13 +5,24 @@ Integration tests for Docker entrypoint module.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import yaml
 
 from src.config.entrypoint import main
+
+
+@pytest.fixture(autouse=True)
+def clear_model_env(monkeypatch):
+    """Remove MODEL_* vars so tests can control the configuration surface."""
+    for key in list(os.environ.keys()):
+        if key.startswith("MODEL_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("PROXY_MODEL_KEYS", raising=False)
 
 
 class TestEntrypointIntegration:
@@ -21,7 +32,6 @@ class TestEntrypointIntegration:
     def test_entrypoint_with_real_environment(self, mock_execvp, monkeypatch):
         """Test full entrypoint flow with real environment variables."""
         # Setup real environment
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_REASONING_EFFORT", "high")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
@@ -71,16 +81,15 @@ class TestEntrypointIntegration:
                 assert "model_list" in config_data
                 assert len(config_data["model_list"]) == 2
 
-                # Verify first model (gpt-5)
-                gpt5_model = config_data["model_list"][0]
+                model_lookup = {model["model_name"]: model for model in config_data["model_list"]}
+                gpt5_model = model_lookup["gpt-5"]
                 assert gpt5_model["model_name"] == "gpt-5"
                 assert gpt5_model["litellm_params"]["model"] == "openai/gpt-5"
                 assert gpt5_model["litellm_params"]["api_base"] == "https://agentrouter.org/v1"
                 assert gpt5_model["litellm_params"]["api_key"] == "sk-test-key-1234567890"
                 assert gpt5_model["litellm_params"]["reasoning_effort"] == "high"
 
-                # Verify second model (deepseek)
-                deepseek_model = config_data["model_list"][1]
+                deepseek_model = model_lookup["deepseek-v3.2"]
                 assert deepseek_model["model_name"] == "deepseek-v3.2"
                 assert deepseek_model["litellm_params"]["model"] == "openai/deepseek-v3.2"
                 assert deepseek_model["litellm_params"]["reasoning_effort"] == "medium"
@@ -103,7 +112,6 @@ class TestEntrypointIntegration:
     def test_entrypoint_generates_valid_yaml(self, mock_execvp, monkeypatch):
         """Test that generated config is valid YAML."""
         # Setup minimal environment
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
@@ -145,7 +153,6 @@ class TestEntrypointIntegration:
     def test_entrypoint_config_matches_expected_structure(self, mock_execvp, monkeypatch):
         """Test that generated config matches expected structure."""
         # Setup environment
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "testmodel")
         monkeypatch.setenv("MODEL_TESTMODEL_UPSTREAM_MODEL", "test-upstream")
         monkeypatch.setenv("OPENAI_BASE_URL", "https://test.example.com/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")

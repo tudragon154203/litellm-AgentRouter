@@ -108,27 +108,3 @@ class TestRealGLMAPI:
                     parts.append(content)
         assert chunks > 0
         assert ''.join(parts).strip()
-
-    @pytest.mark.skip(reason="GLM API content filtering - temporarily disabled")
-    def test_glm_reasoning_task(self):
-        """Test GLM on a reasoning task."""
-        resp = self._call_glm_not_stream(
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "If all roses are flowers and some flowers fade quickly, can we "
-                        "conclude that some roses fade quickly? Explain your reasoning."
-                    ),
-                }
-            ],
-            max_tokens=200,
-            temperature=0.3,
-        )
-        msg = resp.choices[0].message
-        content = (getattr(msg, 'content', None) or getattr(msg, 'reasoning_content', None) or "").strip()
-        assert content
-        assert len(content) > 20  # Should provide a reasoned explanation
-        # Check for reasoning indicators
-        reasoning_words = ["because", "therefore", "since", "conclude", "logic"]
-        assert any(word in content.lower() for word in reasoning_words) or "cannot" in content.lower()

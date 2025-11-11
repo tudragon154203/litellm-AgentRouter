@@ -24,27 +24,29 @@ class TestValidateEnvironment:
     """Tests for validate_environment function."""
 
     def test_validate_environment_success(self, monkeypatch):
-        """Test that validation passes with valid PROXY_MODEL_KEYS."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
+        """Test that validation passes when at least one model is defined."""
+        for key in list(os.environ.keys()):
+            if key.startswith("MODEL_"):
+                monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         # Should not raise
         validate_environment()
 
-    def test_validate_environment_missing_proxy_keys(self, monkeypatch, capsys):
-        """Test that validation fails when PROXY_MODEL_KEYS is missing."""
-        # Skip this test - the validate_environment function has complex state dependencies
-        # that make isolation testing difficult and prone to race conditions
-        pytest.skip("Environment validation test skipped due to runtime state complexity")
+    def test_validate_environment_missing_models(self, monkeypatch, capsys):
+        """Test that validation fails when no MODEL_* vars are defined."""
+        # Skip .env file loading to prevent MODEL_* vars from being reloaded
+        monkeypatch.setenv("SKIP_DOTENV", "1")
 
-    def test_validate_environment_empty_proxy_keys(self, monkeypatch, capsys):
-        """Test that validation fails when PROXY_MODEL_KEYS is empty."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "")
+        for key in list(os.environ.keys()):
+            if key.startswith("MODEL_"):
+                monkeypatch.delenv(key, raising=False)
 
         with pytest.raises(SystemExit) as exc_info:
             validate_environment()
 
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
-        assert "ERROR: PROXY_MODEL_KEYS must be set" in captured.err
+        assert "MODEL_<KEY>_UPSTREAM_MODEL" in captured.err
 
 
 class TestMaskSensitiveValue:
@@ -162,7 +164,6 @@ class TestMain:
     ):
         """Test the full main() integration flow with mocked dependencies."""
         # Setup environment
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
         monkeypatch.setenv("OPENAI_BASE_URL", "https://agentrouter.org/v1")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-api-key-1234567890")
         monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-local-master")
@@ -235,7 +236,6 @@ class TestMain:
         capsys,
     ):
         """Test that main exits with error when load_model_specs_from_env fails."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
         mock_node_instance = MagicMock()
         mock_node_instance.start.return_value.pid = 5678
         mock_node_cls.return_value = mock_node_instance
@@ -264,7 +264,6 @@ class TestMain:
         capsys,
     ):
         """Test that main exits with error when render_config fails."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
         mock_node_instance = MagicMock()
         mock_node_instance.start.return_value.pid = 9012
         mock_node_cls.return_value = mock_node_instance
@@ -296,7 +295,6 @@ class TestMain:
         capsys,
     ):
         """Test that main exits with error when write_config_file fails."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5")
         mock_node_instance = MagicMock()
         mock_node_instance.start.return_value.pid = 2023
         mock_node_cls.return_value = mock_node_instance

@@ -1,4 +1,5 @@
 # GLM-4.6 Integration PRD (Completion)
+> **Update:** `PROXY_MODEL_KEYS` is deprecated; autodiscovered `MODEL_<KEY>_*` variables now replace the legacy pattern.
 
 ## Overview
 The LiteLLM proxy launcher has partial integration for GLM-4.6 (Zhipu AI) with working demo scripts and API tests. This PRD documents the completion of the integration to make GLM-4.6 a first-class model alongside GPT-5, DeepSeek v3.2, and Grok Code Fast-1.

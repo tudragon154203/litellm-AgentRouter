@@ -1,4 +1,5 @@
 # Grok Code Fast-1 Integration PRD (Simplified)
+> **Update:** `PROXY_MODEL_KEYS` is now ignored in favor of autodiscovering `MODEL_<KEY>_*` variables. Details below reflect the legacy schema for posterity.
 
 ## Overview
 The LiteLLM proxy launcher already has a sophisticated multi-model configuration system that supports Grok Code Fast-1 with minimal changes. The integration primarily requires formalizing existing capabilities rather than building new infrastructure.

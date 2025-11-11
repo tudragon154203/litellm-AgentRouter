@@ -2,6 +2,7 @@
 """Unit tests for prepare_config function."""
 
 from __future__ import annotations
+from src.utils import create_temp_config_if_needed
 
 import os
 from pathlib import Path
@@ -13,7 +14,15 @@ import yaml
 
 from src.config.models import ModelSpec
 from src.config.parsing import prepare_config
-from src.utils import create_temp_config_if_needed
+
+
+@pytest.fixture(autouse=True)
+def clear_model_env(monkeypatch):
+    """Ensure MODEL_* variables from other tests don't leak into these cases."""
+    for key in list(os.environ.keys()):
+        if key.startswith("MODEL_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("PROXY_MODEL_KEYS", raising=False)
 
 
 def make_spec(
@@ -70,7 +79,6 @@ class TestPrepareConfig:
 
     def test_prepare_config_from_env(self, monkeypatch):
         """When CLI specs missing, environment should be used."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "primary")
         monkeypatch.setenv("MODEL_PRIMARY_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-env")
 
@@ -117,7 +125,9 @@ class TestPrepareConfig:
 
     def test_prepare_config_missing_env_errors(self, monkeypatch):
         """Missing environment configuration should exit with error."""
-        monkeypatch.delenv("PROXY_MODEL_KEYS", raising=False)
+        for key in list(os.environ.keys()):
+            if key.startswith("MODEL_"):
+                monkeypatch.delenv(key, raising=False)
         args = SimpleNamespace(
             config=None,
             model_specs=[],

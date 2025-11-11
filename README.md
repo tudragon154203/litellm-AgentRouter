@@ -114,12 +114,11 @@ REASONING_EFFORT=medium
 
 ### Multi-Model Setup
 
-Define multiple models using the `PROXY_MODEL_KEYS` pattern:
+Declare each model with `MODEL_<KEY>_*` variables. Any environment variable matching
+`MODEL_<KEY>_UPSTREAM_MODEL` is automatically discovered and loaded (keys are sorted alphabetically for `/models`,
+config output, and telemetry).
 
 ```bash
-# Define model keys (comma-separated)
-PROXY_MODEL_KEYS=GPT5,DEEPSEEK,GROK,GLM
-
 # GPT-5 configuration
 MODEL_GPT5_UPSTREAM_MODEL=gpt-5
 MODEL_GPT5_REASONING_EFFORT=medium
@@ -139,13 +138,14 @@ MODEL_GLM_UPSTREAM_MODEL=glm-4.6
 
 ### Single Model Setup
 
-For a simple single-model deployment:
+Set at least one `MODEL_<KEY>_UPSTREAM_MODEL` variable; no additional key list is required:
 
 ```bash
-PROXY_MODEL_KEYS=PRIMARY
 MODEL_PRIMARY_UPSTREAM_MODEL=gpt-5
 MODEL_PRIMARY_REASONING_EFFORT=medium
 ```
+
+> **Note:** `PROXY_MODEL_KEYS` is now ignored (a warning is logged if it is present). Remove it from `.env` files when convenient.
 
 ### Per-Model Overrides
 

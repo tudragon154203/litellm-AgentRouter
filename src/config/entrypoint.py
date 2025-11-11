@@ -15,7 +15,7 @@ from typing import NoReturn
 
 from .config import runtime_config
 from ..node.process import NodeProxyProcess
-from .parsing import load_model_specs_from_env
+from .parsing import discover_model_keys, load_model_specs_from_env
 from .rendering import render_config
 
 
@@ -23,13 +23,15 @@ def validate_environment() -> None:
     """Validate required environment variables.
 
     Raises:
-        SystemExit: If PROXY_MODEL_KEYS is missing or empty
+        SystemExit: If no MODEL_<KEY>_UPSTREAM_MODEL variables are defined
     """
     runtime_config.ensure_loaded()
 
-    proxy_keys = runtime_config.get_str("PROXY_MODEL_KEYS", "").strip()
-    if not proxy_keys:
-        print("ERROR: PROXY_MODEL_KEYS must be set (comma-separated logical keys).", file=sys.stderr)
+    if not discover_model_keys():
+        print(
+            "ERROR: Define at least one MODEL_<KEY>_UPSTREAM_MODEL environment variable.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 
@@ -160,8 +162,8 @@ def main() -> NoReturn:
         print(f"ERROR: Failed to generate configuration: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Write configuration to file
-    config_path = "/app/generated-config.yaml"
+    # Write configuration to file (allow override for tests/development)
+    config_path = runtime_config.get_str("GENERATED_CONFIG_PATH", "/app/generated-config.yaml")
     try:
         write_config_file(config_text, config_path)
     except Exception as e:
@@ -183,6 +185,13 @@ def main() -> NoReturn:
 
     print(f"\nContainer listening on port {container_port}; host publishes {host_port} -> {container_port}")
     print(f"Starting LiteLLM proxy on {host}:{container_port}...\n")
+
+    # Short-circuit for test harnesses so they can inspect generated configs
+    if runtime_config.get_bool("ENTRYPOINT_TEST_MODE", False):
+        if node_process:
+            node_process.stop()
+        print("ENTRYPOINT_TEST_MODE enabled; skipping server startup.")
+        sys.exit(0)
 
     # Execute src.main with generated config
     os.execvp(

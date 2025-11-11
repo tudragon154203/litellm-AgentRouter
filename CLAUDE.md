@@ -23,7 +23,7 @@
 - **Model Specs**: Defined in `src/config/models.py`, these describe model capabilities (reasoning support, parameter filtering).
 - **Reasoning Effort**: Some models (DeepSeek, GPT-5) support reasoning effort controls via custom parameters.
 - **Alias Lookup**: The telemetry system resolves model aliases to canonical names for consistent logging.
-- **Multi-Model Config**: A single proxy instance can expose multiple models simultaneously using the `PROXY_MODEL_KEYS` pattern.
+- **Multi-Model Config**: Declare each model with `MODEL_<KEY>_*` env vars; keys are autodiscovered (alphabetical order) without needing `PROXY_MODEL_KEYS` (which is now ignored).
 
 ## When Making Changes
 

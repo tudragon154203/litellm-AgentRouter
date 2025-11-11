@@ -7,13 +7,24 @@ import os
 import subprocess
 
 
+def _clean_env(extra: dict[str, str]) -> dict[str, str]:
+    """Return env without lingering MODEL_* variables."""
+    base = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("MODEL_")
+    }
+    base.pop("PROXY_MODEL_KEYS", None)
+    base.update(extra)
+    return base
+
+
 class TestMultiModelIntegration:
     """Integration tests for multi-model configurations."""
 
     def test_print_config_dual_model_env(self):
         """Test --print-config with dual-model environment configuration."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5,deepseek",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_GPT5_REASONING_EFFORT": "medium",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
@@ -32,7 +43,7 @@ class TestMultiModelIntegration:
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars},
+            env=_clean_env(env_vars),
         )
 
         assert result.returncode == 0
@@ -58,7 +69,6 @@ class TestMultiModelIntegration:
     def test_print_config_single_model_env(self):
         """Test --print-config with single model environment configuration."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "primary",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
             "MODEL_PRIMARY_REASONING_EFFORT": "high",
             "OPENAI_BASE_URL": "https://custom.api.com",
@@ -74,7 +84,7 @@ class TestMultiModelIntegration:
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars},
+            env=_clean_env(env_vars),
         )
 
         assert result.returncode == 0
@@ -98,7 +108,7 @@ class TestMultiModelIntegration:
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "SKIP_PREREQ_CHECK": "1"}
+            env=_clean_env({"SKIP_PREREQ_CHECK": "1"})
         )
 
         assert result.returncode == 0
@@ -129,7 +139,6 @@ class TestMultiModelIntegration:
     def test_startup_message_dual_model(self):
         """Test startup message displays all configured models."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5,deepseek",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
         }
@@ -151,7 +160,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars}
+            env=_clean_env(env_vars)
         )
 
         assert result.returncode == 0
@@ -164,7 +173,6 @@ print(get_startup_message(args))
     def test_startup_message_single_model(self):
         """Test startup message for single model."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "primary",
             "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
         }
 
@@ -185,7 +193,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars}
+            env=_clean_env(env_vars)
         )
 
         assert result.returncode == 0
@@ -196,7 +204,7 @@ print(get_startup_message(args))
 
     def test_legacy_single_model_requires_new_schema(self):
         """Legacy single-model flags without model specs should fail."""
-        # Create a clean environment without any PROXY_MODEL_KEYS or model variables
+        # Create a clean environment without any MODEL_* variables
         clean_env = {}
         # Keep only essential environment variables
         for key in ["PATH", "PYTHONPATH", "SYSTEMROOT", "COMSPEC", "PATHEXT"]:
@@ -220,7 +228,7 @@ print(get_startup_message(args))
         )
 
         assert result.returncode != 0
-        assert "PROXY_MODEL_KEYS" in result.stderr or "model specifications" in result.stderr
+        assert "MODEL_" in result.stderr or "model specifications" in result.stderr
 
     def test_error_handling_missing_env_vars(self):
         """Test error handling for missing required environment variables."""
@@ -233,8 +241,8 @@ print(get_startup_message(args))
 
         # Add test-specific environment variables
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5",
-            # Missing MODEL_GPT5_UPSTREAM_MODEL intentionally
+            # Declare the key but leave upstream model empty to trigger validation error
+            "MODEL_GPT5_UPSTREAM_MODEL": "",
             "SKIP_PREREQ_CHECK": "1",
             "SKIP_DOTENV": "1"
         }
@@ -257,7 +265,6 @@ print(get_startup_message(args))
     def test_config_yaml_ordering(self):
         """Test that generated YAML has correct ordering for snapshot testing."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5,deepseek",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_DEEPSEEK_UPSTREAM_MODEL": "deepseek-v3.2",
             "OPENAI_BASE_URL": "https://agentrouter.org/v1",
@@ -271,7 +278,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars, "SKIP_PREREQ_CHECK": "1"}
+            env=_clean_env({**env_vars, "SKIP_PREREQ_CHECK": "1"})
         )
 
         assert result.returncode == 0
@@ -284,8 +291,8 @@ print(get_startup_message(args))
         gpt5_line_idx = next(i for i, line in enumerate(config_lines) if 'model_name: "gpt-5"' in line)
         deepseek_line_idx = next(i for i, line in enumerate(config_lines) if 'model_name: "deepseek-v3.2"' in line)
 
-        # GPT-5 should come first (matching PROXY_MODEL_KEYS order)
-        assert gpt5_line_idx < deepseek_line_idx
+        # Alphabetical ordering should put DeepSeek before GPT-5
+        assert deepseek_line_idx < gpt5_line_idx
 
         # Verify litellm_settings comes after all models
         litellm_settings_idx = next(i for i, line in enumerate(config_lines) if "litellm_settings:" in line)
@@ -295,7 +302,6 @@ print(get_startup_message(args))
     def test_print_config_with_glm_4_6(self):
         """Test --print-config with GLM-4.6 in multi-model configuration."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5,glm",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_GPT5_REASONING_EFFORT": "medium",
             "MODEL_GLM_UPSTREAM_MODEL": "glm-4.6",
@@ -314,7 +320,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars},
+            env=_clean_env(env_vars),
         )
 
         assert result.returncode == 0
@@ -365,7 +371,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "SKIP_PREREQ_CHECK": "1"}
+            env=_clean_env({"SKIP_PREREQ_CHECK": "1"})
         )
 
         assert result.returncode == 0
@@ -394,7 +400,6 @@ print(get_startup_message(args))
     def test_startup_message_with_glm(self):
         """Test startup message includes GLM-4.6."""
         env_vars = {
-            "PROXY_MODEL_KEYS": "gpt5,glm",
             "MODEL_GPT5_UPSTREAM_MODEL": "gpt-5",
             "MODEL_GLM_UPSTREAM_MODEL": "glm-4.6",
         }
@@ -416,7 +421,7 @@ print(get_startup_message(args))
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, **env_vars}
+            env=_clean_env(env_vars)
         )
 
         assert result.returncode == 0

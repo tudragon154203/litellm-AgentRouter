@@ -1,4 +1,5 @@
 # Python Entrypoint Migration
+> **Update:** `PROXY_MODEL_KEYS` is deprecated; autodiscovered `MODEL_<KEY>_*` variables now replace the legacy pattern.
 
 **Status**: Completed  
 **Priority**: High  

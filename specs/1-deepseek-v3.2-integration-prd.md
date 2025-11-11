@@ -1,5 +1,7 @@
 # DeepSeek v3.2 Integration PRD
 
+> **Update:** `PROXY_MODEL_KEYS` has since been retired in favor of autodiscovering `MODEL_<KEY>_*` variables. References below describe the legacy schema kept for historical context.
+
 ## Background
 - LiteLLM Local Gateway currently ships with defaults and docs tuned for AgentRouter's GPT-5 model.
 - The CLI generates a LiteLLM config on-the-fly that always prefixes `openai/` to the upstream model and exposes it under a single alias.

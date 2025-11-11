@@ -6,9 +6,14 @@ Configuration parsing functionality for LiteLLM proxy launcher.
 from __future__ import annotations
 
 import os
-from typing import List
+import re
+import sys
+from typing import List, Mapping
 
 from .models import ModelSpec
+
+MODEL_ENV_PATTERN = re.compile(r"^MODEL_([A-Z0-9_]+)_UPSTREAM_MODEL$")
+_proxy_warning_emitted = False
 
 
 def parse_model_spec(spec_str: str) -> ModelSpec:
@@ -16,7 +21,7 @@ def parse_model_spec(spec_str: str) -> ModelSpec:
 
     Format: key=xxx,upstream=xxx[,alias=xxx][,base=xxx][,key_env=xxx][,reasoning=xxx]
     """
-    parts = {}
+    parts: dict[str, str] = {}
     for part in spec_str.split(','):
         if '=' not in part:
             raise ValueError(f"Invalid model spec part: {part}")
@@ -40,43 +45,66 @@ def parse_model_spec(spec_str: str) -> ModelSpec:
     )
 
 
-def load_model_specs_from_env() -> List[ModelSpec]:
-    """Load model specifications from environment variables using new multi-model schema."""
-    proxy_model_keys = os.getenv("PROXY_MODEL_KEYS", "").strip()
-    if not proxy_model_keys:
+def discover_model_keys(env: Mapping[str, str] | None = None) -> List[str]:
+    """Discover logical model keys by scanning MODEL_<KEY>_UPSTREAM_MODEL env vars."""
+    source = env or os.environ
+    keys = {
+        match.group(1)
+        for name in source.keys()
+        if (match := MODEL_ENV_PATTERN.match(name))
+    }
+    return sorted(keys, key=str.lower)  # Deterministic alphabetical ordering
+
+
+def _warn_if_proxy_keys_present(env: Mapping[str, str]) -> None:
+    """Emit a warning when deprecated PROXY_MODEL_KEYS is still defined."""
+    global _proxy_warning_emitted
+    if _proxy_warning_emitted or "PROXY_MODEL_KEYS" not in env:
+        return
+
+    print(
+        "WARNING: PROXY_MODEL_KEYS is ignored; declare MODEL_<KEY>_UPSTREAM_MODEL variables instead.",
+        file=sys.stderr,
+    )
+    _proxy_warning_emitted = True
+
+
+def load_model_specs_from_env(env: Mapping[str, str] | None = None) -> List[ModelSpec]:
+    """Load model specifications from environment variables using autodiscovery."""
+    source = env or os.environ
+    keys = discover_model_keys(source)
+    _warn_if_proxy_keys_present(source)
+
+    if not keys:
         raise ValueError(
-            "PROXY_MODEL_KEYS is not set. "
-            "Define at least one model using multi-model environment schema."
+            "No model definitions found. "
+            "Set at least one MODEL_<KEY>_UPSTREAM_MODEL environment variable."
         )
 
-    keys = [key.strip() for key in proxy_model_keys.split(',') if key.strip()]
     model_specs: List[ModelSpec] = []
 
     for key in keys:
-        prefix = f"MODEL_{key.upper()}_"
+        prefix = f"MODEL_{key}_"
 
         # Check for legacy alias variables and fail fast
         alias_env_var = f"{prefix}ALIAS"
-        if os.getenv(alias_env_var):
+        if source.get(alias_env_var):
             raise ValueError(
                 f"Legacy environment variable '{alias_env_var}' detected. "
-                f"Please remove it and use only MODEL_{key.upper()}_UPSTREAM_MODEL. "
+                f"Please remove it and use only MODEL_{key}_UPSTREAM_MODEL. "
                 f"The alias will be automatically derived from the upstream model name."
             )
 
-        upstream_model = os.getenv(f"{prefix}UPSTREAM_MODEL")
-        # Allow per-model upstream_base override, but default to None
-        # so it falls back to the global_upstream_base passed to render_config
-        upstream_base = os.getenv(f"{prefix}UPSTREAM_BASE")
-        reasoning_effort = os.getenv(f"{prefix}REASONING_EFFORT")
+        upstream_model = source.get(f"{prefix}UPSTREAM_MODEL")
+        upstream_base = source.get(f"{prefix}UPSTREAM_BASE")
+        reasoning_effort = source.get(f"{prefix}REASONING_EFFORT")
 
         if not upstream_model:
             raise ValueError(f"Missing environment variable: {prefix}UPSTREAM_MODEL")
 
-        # Create ModelSpec with alias=None to auto-derive from upstream_model
         model_specs.append(
             ModelSpec(
-                key=key,
+                key=key.lower(),
                 alias=None,  # Let ModelSpec derive alias from upstream_model
                 upstream_model=upstream_model,
                 upstream_base=upstream_base,  # None unless explicitly set per-model

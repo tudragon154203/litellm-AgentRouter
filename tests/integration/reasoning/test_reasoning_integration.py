@@ -15,6 +15,15 @@ from src.config.parsing import prepare_config
 from src.config.rendering import render_config
 
 
+@pytest.fixture(autouse=True)
+def clear_model_env(monkeypatch):
+    """Ensure MODEL_* vars from the developer environment don't leak into tests."""
+    for key in list(os.environ.keys()):
+        if key.startswith("MODEL_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("PROXY_MODEL_KEYS", raising=False)
+
+
 def run_main_with_env(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     """Helper to invoke `python -m src.main --print-config` with env."""
     process = subprocess.run(
@@ -31,7 +40,6 @@ class TestReasoningEffortEndToEnd:
 
     def test_env_driven_reasoning(self, monkeypatch):
         """Environment configuration should include reasoning for GPT-5 only."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "gpt5,deepseek")
         monkeypatch.setenv("MODEL_GPT5_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("MODEL_GPT5_REASONING_EFFORT", "high")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
@@ -52,15 +60,15 @@ class TestReasoningEffortEndToEnd:
 
         config_text, _ = prepare_config(args)
         parsed = yaml.safe_load(config_text)
-        gpt5_params = parsed["model_list"][0]["litellm_params"]
-        deepseek_params = parsed["model_list"][1]["litellm_params"]
+        models = {entry["model_name"]: entry for entry in parsed["model_list"]}
+        gpt5_params = models["gpt-5"]["litellm_params"]
+        deepseek_params = models["deepseek-v3.2"]["litellm_params"]
 
         assert gpt5_params["reasoning_effort"] == "high"
         assert deepseek_params["reasoning_effort"] == "low"
 
     def test_env_reasoning_none_omits_value(self, monkeypatch):
         """Setting reasoning to 'none' should omit the parameter."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "deepseek")
         monkeypatch.setenv("MODEL_DEEPSEEK_UPSTREAM_MODEL", "deepseek-v3.2")
         monkeypatch.setenv("MODEL_DEEPSEEK_REASONING_EFFORT", "none")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
@@ -110,7 +118,6 @@ class TestReasoningEffortEndToEnd:
 
     def test_missing_reasoning_defaults_to_none(self, monkeypatch):
         """Omitting reasoning should leave the field absent."""
-        monkeypatch.setenv("PROXY_MODEL_KEYS", "primary")
         monkeypatch.setenv("MODEL_PRIMARY_UPSTREAM_MODEL", "gpt-5")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("SKIP_PREREQ_CHECK", "1")

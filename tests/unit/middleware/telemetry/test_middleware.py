@@ -427,30 +427,6 @@ class DropReasoningPolicy:
         return request, {"dropped_param": "reasoning"}
 
 
-class TestMiddlewareLegacyCompatibility:
-    """Test legacy compatibility shim with alias_lookup parameter."""
-
-    def setup_method(self):
-        self.mock_app = SimpleNamespace(state=SimpleNamespace(litellm_telemetry_alias_lookup={}))
-        self.log_records = []
-
-    async def test_legacy_alias_lookup_compatibility(self):
-        """Test middleware works with legacy alias_lookup parameter."""
-        # Skip this test - legacy compatibility has complex dependencies that make
-        # isolation testing unreliable in CI environments
-        pytest.skip("Legacy compatibility test skipped due to complex dependencies")
-
-    async def test_legacy_import_fallback(self):
-        """Test fallback when env_bool import fails."""
-        # Skip this test - complex import mocking causes reliability issues
-        pytest.skip("Legacy import fallback test skipped due to complexity")
-
-    def test_config_and_alias_lookup_none_raises_error(self):
-        """Should raise ValueError when both config and alias_lookup are None."""
-        with pytest.raises(ValueError, match="Either config or alias_lookup must be provided"):
-            TelemetryMiddleware(self.mock_app)
-
-
 class TestMiddlewareErrorHandling:
     """Test error handling paths without over-testing every exception type."""
 
@@ -463,6 +439,11 @@ class TestMiddlewareErrorHandling:
             sinks=[self.in_memory],
             reasoning_policy=NoOpReasoningPolicy(),
         )
+
+    def test_config_and_alias_lookup_none_raises_error(self):
+        """Should raise ValueError when both config and alias_lookup are None."""
+        with pytest.raises(ValueError, match="Either config or alias_lookup must be provided"):
+            TelemetryMiddleware(self.mock_app)
 
     async def test_extract_streaming_usage_with_body_iterator(self):
         """Test streaming usage extraction with body_iterator attribute."""
