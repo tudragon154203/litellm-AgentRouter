@@ -213,8 +213,6 @@ class TestParseArgs:
             args = parse_args([])
             assert args.node_upstream_proxy_enabled is False
 
-
-
     def test_parse_args_streaming_flag(self):
         """Test parse_args with --streaming flag."""
         argv = ["--streaming"]

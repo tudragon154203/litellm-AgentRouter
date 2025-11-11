@@ -98,8 +98,8 @@ class TestBuildUserAgent:
     def test_build_user_agent_defaults(self):
         """Uses default version and architecture when env vars missing."""
         with patch.dict(os.environ, {}, clear=True), \
-             patch("src.utils.platform.system", return_value="linux"), \
-             patch("src.utils.platform.machine", return_value="x86_64"):
+                patch("src.utils.platform.system", return_value="linux"), \
+                patch("src.utils.platform.machine", return_value="x86_64"):
             expected = "QwenCode/0.2.0 (linux; x86_64)"
             assert build_user_agent() == expected
 
@@ -107,8 +107,8 @@ class TestBuildUserAgent:
         """Reads CLI_VERSION from environment."""
         env = {"CLI_VERSION": "1.2.3"}
         with patch.dict(os.environ, env, clear=True), \
-             patch("src.utils.platform.system", return_value="darwin"), \
-             patch("src.utils.platform.machine", return_value="arm64"):
+                patch("src.utils.platform.system", return_value="darwin"), \
+                patch("src.utils.platform.machine", return_value="arm64"):
             expected = "QwenCode/1.2.3 (darwin; arm64)"
             assert build_user_agent() == expected
 
@@ -116,8 +116,8 @@ class TestBuildUserAgent:
         """Explicit version argument overrides environment variable."""
         env = {"CLI_VERSION": "should-not-appear"}
         with patch.dict(os.environ, env, clear=True), \
-             patch("src.utils.platform.system", return_value="linux"), \
-             patch("src.utils.platform.machine", return_value="x86_64"):
+                patch("src.utils.platform.system", return_value="linux"), \
+                patch("src.utils.platform.machine", return_value="x86_64"):
             expected = "QwenCode/9.9.9 (linux; x86_64)"
             assert build_user_agent("9.9.9") == expected
 
