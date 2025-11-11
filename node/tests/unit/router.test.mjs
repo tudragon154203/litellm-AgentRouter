@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { NodeRequestRouter } from "../../lib/router.mjs";
+import { NodeRequestRouter } from "../../lib/router/router.mjs";
 
 const SILENT_LOGGER = { log: () => {}, error: () => {} };
 

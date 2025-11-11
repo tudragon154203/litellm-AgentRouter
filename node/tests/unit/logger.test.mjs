@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { logEvent } from "../../lib/logger.mjs";
+import { logEvent } from "../../lib/utils/logger.mjs";
 
 test("logEvent logs structured JSON", () => {
   const logs = [];

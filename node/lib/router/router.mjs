@@ -1,5 +1,5 @@
-import { logEvent } from "./logger.mjs";
-import { buildForwardHeaders, headersToPlainObject, readJsonBody } from "./http-utils.mjs";
+import { logEvent } from "../utils/logger.mjs";
+import { buildForwardHeaders, headersToPlainObject, readJsonBody } from "../utils/http-utils.mjs";
 import { createRouteHandlers } from "./routes.mjs";
 
 export class NodeRequestRouter {

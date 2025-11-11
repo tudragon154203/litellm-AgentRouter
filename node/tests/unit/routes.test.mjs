@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { createRouteHandlers } from "../../lib/routes.mjs";
+import { createRouteHandlers } from "../../lib/router/routes.mjs";
 
 test("createRouteHandlers creates chat completions handler", async () => {
   const mockClient = {

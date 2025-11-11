@@ -1,7 +1,7 @@
-import { NodeProxyConfig } from "./config.mjs";
+import { NodeProxyConfig } from "../config/config.mjs";
 import { NodeProxyServer } from "./server.mjs";
-import { createDefaultClientFactory } from "./client.mjs";
-import { logEvent } from "./logger.mjs";
+import { createDefaultClientFactory } from "../client/client.mjs";
+import { logEvent } from "../utils/logger.mjs";
 
 export function createNodeUpstreamProxy({
   logger = console,

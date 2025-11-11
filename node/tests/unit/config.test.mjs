@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { NodeProxyConfig } from "../../lib/config.mjs";
+import { NodeProxyConfig } from "../../lib/config/config.mjs";
 
 test("NodeProxyConfig.fromEnv uses defaults when no overrides", () => {
   const originalApiKey = process.env.OPENAI_API_KEY;
@@ -8,10 +8,10 @@ test("NodeProxyConfig.fromEnv uses defaults when no overrides", () => {
 
   try {
     const config = NodeProxyConfig.fromEnv();
-    
+
     assert.strictEqual(config.port, 4000);
     assert.strictEqual(config.host, "0.0.0.0");
-    assert.strictEqual(config.timeoutMs, 60_000);
+    assert.strictEqual(config.timeoutMs, 300_000);
     assert.strictEqual(config.upstreamBase, "https://agentrouter.org/v1");
     assert.strictEqual(config.apiKey, "sk-test-key");
     assert.ok(config.userAgent.includes("QwenCode"));
@@ -37,7 +37,7 @@ test("NodeProxyConfig.fromEnv applies overrides", () => {
       apiKey: "sk-override-key",
       userAgent: "CustomAgent/1.0",
     });
-    
+
     assert.strictEqual(config.port, 8080);
     assert.strictEqual(config.host, "127.0.0.1");
     assert.strictEqual(config.timeoutMs, 30_000);
@@ -64,7 +64,7 @@ test("NodeProxyConfig.fromEnv reads from environment variables", () => {
 
   try {
     const config = NodeProxyConfig.fromEnv();
-    
+
     assert.strictEqual(config.apiKey, "sk-from-env");
     assert.strictEqual(config.upstreamBase, "https://env.api/v1");
     assert.strictEqual(config.userAgent, "EnvAgent/2.0");

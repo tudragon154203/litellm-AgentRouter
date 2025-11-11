@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { buildForwardHeaders, headersToPlainObject, readJsonBody } from "../../lib/http-utils.mjs";
+import { buildForwardHeaders, headersToPlainObject, readJsonBody } from "../../lib/utils/http-utils.mjs";
 
 test("buildForwardHeaders extracts x-request-id", () => {
   const headers = {

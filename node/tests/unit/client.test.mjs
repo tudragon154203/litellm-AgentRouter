@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { createDefaultClientFactory } from "../../lib/client.mjs";
+import { createDefaultClientFactory } from "../../lib/client/client.mjs";
 
 test("createDefaultClientFactory returns a factory function", () => {
   const factory = createDefaultClientFactory();

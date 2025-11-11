@@ -1,6 +1,6 @@
 import http from "node:http";
-import { logEvent } from "./logger.mjs";
-import { createRequestHandler } from "./router.mjs";
+import { logEvent } from "../utils/logger.mjs";
+import { createRequestHandler } from "../router/router.mjs";
 
 export class NodeProxyServer {
   constructor({ config, logger, openaiClientFactory }) {

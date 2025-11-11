@@ -1,10 +1,10 @@
 import {
   DEFAULT_PORT,
   DEFAULT_HOST,
-  DEFAULT_TIMEOUT_MS,
+  DEFAULT_TIMEOUT_SECONDS,
   DEFAULT_UPSTREAM_BASE,
 } from "./constants.mjs";
-import { DEFAULT_USER_AGENT } from "./fetchVersion.mjs";
+import { DEFAULT_USER_AGENT } from "../fetch/fetchVersion.mjs";
 
 export class NodeProxyConfig {
   constructor({ port, host, timeoutMs, upstreamBase, apiKey, userAgent }) {
@@ -19,7 +19,7 @@ export class NodeProxyConfig {
   static fromEnv(overrides = {}) {
     const port = overrides.port ?? DEFAULT_PORT;
     const host = overrides.host ?? DEFAULT_HOST;
-    const timeoutMs = overrides.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const timeoutMs = overrides.timeoutMs ?? DEFAULT_TIMEOUT_SECONDS * 1000;
     const upstreamBase = overrides.upstreamBase ?? process.env.OPENAI_BASE_URL ?? DEFAULT_UPSTREAM_BASE;
     const apiKey = overrides.apiKey ?? process.env.OPENAI_API_KEY;
     const userAgent = overrides.userAgent ?? process.env.NODE_USER_AGENT ?? DEFAULT_USER_AGENT;

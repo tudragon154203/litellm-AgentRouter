@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { createNodeUpstreamProxy } from "./lib/proxy.mjs";
+import { createNodeUpstreamProxy } from "./lib/server/proxy.mjs";
 
-export { createNodeUpstreamProxy } from "./lib/proxy.mjs";
-export { createRequestHandler } from "./lib/router.mjs";
-export { DEFAULT_TIMEOUT_MS } from "./lib/constants.mjs";
+export { createNodeUpstreamProxy } from "./lib/server/proxy.mjs";
+export { createRequestHandler } from "./lib/router/router.mjs";
+export { DEFAULT_TIMEOUT_SECONDS } from "./lib/config/constants.mjs";
 
 async function main() {
   const proxy = createNodeUpstreamProxy();

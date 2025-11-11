@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { fetchLatestVersion, DEFAULT_USER_AGENT } from "../../lib/fetchVersion.mjs";
+import { fetchLatestVersion, DEFAULT_USER_AGENT } from "../../lib/fetch/fetchVersion.mjs";
 
 // Mock the global fetch function
 global.fetch = async (url) => {

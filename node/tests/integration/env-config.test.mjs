@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { test } from "node:test";
-import { createNodeUpstreamProxy } from "../../upstream-proxy.mjs";
+import { createNodeUpstreamProxy } from "../../main.mjs";
 
 const SILENT_LOGGER = { log: () => {}, error: () => {} };
 

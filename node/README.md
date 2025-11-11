@@ -6,7 +6,7 @@ Modular Node.js proxy for forwarding OpenAI-compatible requests to upstream prov
 
 ```
 node/
-├── upstream-proxy.mjs       # Entry point and CLI
+├── main.mjs                 # Entry point and CLI
 ├── lib/                     # Core modules
 │   ├── config.mjs           # Configuration management
 │   ├── constants.mjs        # Shared constants
@@ -33,7 +33,7 @@ node/
 ## Usage
 
 ```javascript
-import { createNodeUpstreamProxy } from "./node/upstream-proxy.mjs";
+import { createNodeUpstreamProxy } from "./node/main.mjs";
 
 const proxy = createNodeUpstreamProxy({
   port: 4000,
