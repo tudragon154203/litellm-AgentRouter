@@ -35,7 +35,6 @@ class TestParseArgs:
             assert args.streaming is True
             assert args.print_config is False
             assert args.node_upstream_proxy_enabled is True
-            assert args.node_proxy_port == 4001
 
     def test_parse_args_with_all_arguments(self):
         """Test parse_args with all command line arguments provided."""
@@ -55,7 +54,6 @@ class TestParseArgs:
             "--no-streaming",
             "--print-config",
             "--no-node-upstream-proxy",
-            "--node-proxy-port", "5020",
         ]
 
         with patch.dict(os.environ, {}, clear=True):
@@ -76,7 +74,6 @@ class TestParseArgs:
             assert args.streaming is False
             assert args.print_config is True
             assert args.node_upstream_proxy_enabled is False
-            assert args.node_proxy_port == 5020
 
     def test_parse_args_config_from_env(self):
         """Test parse_args with config - LITELLM_CONFIG is now retired (hardcoded to None)."""

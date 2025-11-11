@@ -55,7 +55,6 @@ class TestPrepareConfig:
             drop_params=True,
             streaming=True,
             node_upstream_proxy_enabled=True,
-            node_proxy_port=6001,
             print_config=False,
         )
 
@@ -84,7 +83,6 @@ class TestPrepareConfig:
             drop_params=True,
             streaming=False,
             node_upstream_proxy_enabled=False,
-            node_proxy_port=5701,
             print_config=False,
         )
 
@@ -104,19 +102,18 @@ class TestPrepareConfig:
         args = SimpleNamespace(
             config=None,
             model_specs=[spec],
-            upstream_base="https://custom.api/v1",
+            upstream_base=None,  # No custom upstream_base, so node proxy will be used
             master_key="sk-node",
             no_master_key=False,
             drop_params=True,
             streaming=True,
             node_upstream_proxy_enabled=True,
-            node_proxy_port=6123,
             print_config=False,
         )
 
         config_text, is_generated = prepare_config(args)
         parsed = yaml.safe_load(config_text)
-        assert parsed["model_list"][0]["litellm_params"]["api_base"] == "http://127.0.0.1:6123/v1"
+        assert parsed["model_list"][0]["litellm_params"]["api_base"] == "http://127.0.0.1:4000/v1"
 
     def test_prepare_config_missing_env_errors(self, monkeypatch):
         """Missing environment configuration should exit with error."""

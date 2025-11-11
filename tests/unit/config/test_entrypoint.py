@@ -193,7 +193,7 @@ class TestMain:
         assert os.environ.get("NODE_UPSTREAM_PROXY_PID") == "1234"
         mock_render.assert_called_once_with(
             model_specs=[mock_model_spec],
-            global_upstream_base="http://127.0.0.1:4001/v1",
+            global_upstream_base="http://127.0.0.1:4000/v1",
             master_key="sk-local-master",
             drop_params=True,
             streaming=True,
