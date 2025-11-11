@@ -13,7 +13,7 @@ from src.node.process import NodeProxyProcess
 
 
 def _create_node_script(tmp_path: Path) -> Path:
-    script = tmp_path / "upstream-proxy.mjs"
+    script = tmp_path / "main.mjs"
     script.write_text("// dummy node proxy")
     return script
 

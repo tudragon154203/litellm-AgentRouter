@@ -19,7 +19,7 @@ class NodeProxyProcess:
     @staticmethod
     def _resolve_node_script() -> Path:
         base_dir = Path(__file__).resolve().parents[2]
-        script = base_dir / "node" / "upstream-proxy.mjs"
+        script = base_dir / "node" / "main.mjs"
         if not script.is_file():
             raise FileNotFoundError(f"Node upstream proxy script not found: {script}")
         return script

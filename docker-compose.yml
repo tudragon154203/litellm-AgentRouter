@@ -2,7 +2,6 @@ services:
   node-proxy:
     build: .
     container_name: litellm-node-proxy
-    command: ["node", "/app/node/upstream-proxy.mjs"]
     volumes:
       - ./node:/app/node
       - ./.env:/app/.env
@@ -10,11 +9,16 @@ services:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"const net=require('net');const s=net.connect(4000,()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "const net=require(''net'');const s=net.connect(4000,()=>{s.end();process.exit(0)});s.on(''error'',()=>process.exit(1));"',
+        ]
       interval: 5s
       timeout: 3s
       retries: 3
       start_period: 5s
+    command: ["node", "/app/node/main.mjs"]
 
   litellm-proxy:
     build: .

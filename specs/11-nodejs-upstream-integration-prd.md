@@ -55,7 +55,7 @@ The Node.js upstream proxy feature successfully routes LiteLLM traffic through a
 ## Implemented Solution
 
 - **Node helper service**: ✅ Implemented as modular Node.js HTTP service in `node/`:
-  * `node/upstream-proxy.mjs` - Main entry point with signal handling (SIGINT, SIGTERM)
+  * `node/main.mjs` - Main entry point with signal handling (SIGINT, SIGTERM)
   * `node/lib/proxy.mjs` - Proxy factory with configuration and client injection
   * `node/lib/server.mjs` - HTTP server using Node's built-in `http` module
   * `node/lib/router.mjs` - Request routing with streaming support
@@ -129,7 +129,7 @@ The Node.js upstream proxy feature successfully routes LiteLLM traffic through a
   * `src/utils.py` - Cleanup handlers and signal management
   
 - **Node Layer** (`node/`):
-  * `node/upstream-proxy.mjs` - Entry point with signal handling (SIGINT, SIGTERM)
+  * `node/main.mjs` - Entry point with signal handling (SIGINT, SIGTERM)
   * `node/lib/proxy.mjs` - Proxy factory (`createNodeUpstreamProxy`)
   * `node/lib/server.mjs` - HTTP server (`NodeProxyServer` class)
   * `node/lib/router.mjs` - Request routing (`NodeRequestRouter` class)
@@ -189,7 +189,7 @@ The Node.js upstream proxy feature successfully routes LiteLLM traffic through a
 ✅ **Completed - Feature is production-ready**
 
 **Implementation Timeline**:
-1. ✅ Node helper implemented in `node/upstream-proxy.mjs` with modular architecture
+1. ✅ Node helper implemented in `node/main.mjs` with modular architecture
 2. ✅ Node unit tests added (`node --test`) covering all core functionality
 3. ✅ Python subprocess management implemented in `src/node/process.py`
 4. ✅ Python unit tests added for CLI, config, entrypoint, and process management

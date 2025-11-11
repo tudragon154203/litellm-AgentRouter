@@ -145,3 +145,111 @@ def test_fails_when_legacy_alias_present(tmp_path: Path):
     code, out, err = _run_script(script, env)
     assert code != 0
     assert "Legacy environment variable 'MODEL_GPT5_ALIAS' detected" in out or err
+
+
+def test_missing_required_vars(tmp_path: Path):
+    """Entrypoint should fail when required variables are missing."""
+    app_dir = tmp_path / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    script = _make_patched_entrypoint(tmp_path, app_dir)
+
+    # Test missing master key
+    env = os.environ.copy()
+    env.update({
+        "PROXY_MODEL_KEYS": "primary",
+        "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
+        "OPENAI_API_KEY": "sk-test-123",
+        # Missing LITELLM_MASTER_KEY
+    })
+
+    code, out, err = _run_script(script, env)
+    assert code != 0
+    assert "LITELLM_MASTER_KEY" in out or err or "master key" in out.lower() or err.lower()
+
+    # Test missing required model variables
+    env = os.environ.copy()
+    env.update({
+        "LITELLM_MASTER_KEY": "sk-test-master",
+        "OPENAI_API_KEY": "sk-test-123",
+        # Missing model configuration
+    })
+
+    code, out, err = _run_script(script, env)
+    assert code != 0
+
+
+def test_concurrent_env_var_handling(tmp_path: Path):
+    """Test that script handles various environment variable combinations."""
+    app_dir = tmp_path / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    script = _make_patched_entrypoint(tmp_path, app_dir)
+
+    # Test with all optional variables
+    env = os.environ.copy()
+    env.update({
+        "PROXY_MODEL_KEYS": "primary,secondary",
+        "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5",
+        "MODEL_PRIMARY_REASONING_EFFORT": "medium",
+        "MODEL_SECONDARY_UPSTREAM_MODEL": "claude-3",
+        "MODEL_SECONDARY_REASONING_EFFORT": "high",
+        "OPENAI_API_KEY": "sk-test-123",
+        "LITELLM_MASTER_KEY": "sk-test-master",
+        "LITELLM_HOST": "127.0.0.1",
+        "PORT": "3000",
+        "DROP_PARAMS": "true",
+        "STREAMING": "false",
+    })
+
+    code, out, err = _run_script(script, env)
+    assert code == 0, f"script failed: {out}\n{err}"
+
+    generated = (app_dir / "generated-config.yaml").read_text()
+    assert 'model_name: "gpt-5"' in generated
+    assert 'reasoning_effort: "medium"' in generated
+    assert 'model_name: "claude-3"' in generated
+    assert 'reasoning_effort: "high"' in generated
+    assert 'drop_params: true' in generated
+    assert 'streaming: false' in generated
+
+
+def test_config_generation_with_special_characters(tmp_path: Path):
+    """Test config generation with special characters in values."""
+    app_dir = tmp_path / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    script = _make_patched_entrypoint(tmp_path, app_dir)
+
+    env = os.environ.copy()
+    env.update({
+        "PROXY_MODEL_KEYS": "primary",
+        "MODEL_PRIMARY_UPSTREAM_MODEL": "gpt-5-turbo",
+        "MODEL_PRIMARY_REASONING_EFFORT": "high",
+        "OPENAI_API_KEY": "sk-test-special!@#$%",
+        "LITELLM_MASTER_KEY": "sk-master-2024",
+    })
+
+    code, out, err = _run_script(script, env)
+    assert code == 0, f"script failed: {out}\n{err}"
+
+    generated = (app_dir / "generated-config.yaml").read_text()
+    assert 'model_name: "gpt-5-turbo"' in generated
+    assert 'api_key: "sk-test-special!@#$%"' in generated
+
+
+def test_script_error_handling(tmp_path: Path):
+    """Test script handles various error conditions gracefully."""
+    app_dir = tmp_path / "app"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    script = _make_patched_entrypoint(tmp_path, app_dir)
+
+    # Test with invalid model key
+    env = os.environ.copy()
+    env.update({
+        "PROXY_MODEL_KEYS": "invalid_model_key",
+        "MODEL_INVALID_MODEL_KEY_UPSTREAM_MODEL": "gpt-5",
+        "OPENAI_API_KEY": "sk-test-123",
+        "LITELLM_MASTER_KEY": "sk-test-master",
+    })
+
+    code, out, err = _run_script(script, env)
+    # Should handle invalid model key gracefully
+    assert code != 0 or ("Invalid model key" in (out + err))
